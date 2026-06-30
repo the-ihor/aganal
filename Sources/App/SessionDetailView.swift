@@ -4,22 +4,46 @@ import SwiftUI
 /// breakdown.
 struct SessionDetailView: View {
     @EnvironmentObject var model: AppModel
+    @State private var mode: DetailMode = .analysis
 
     var body: some View {
         Group {
-            if model.isParsing {
-                ProgressView("Parsing…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error = model.errorMessage {
-                ContentUnavailableLabel(error, systemImage: "exclamationmark.triangle")
-            } else if let session = model.loadedSession, let summary = model.summary {
-                ScrollView {
-                    SessionDetailContent(session: session, summary: summary)
-                        .padding(20)
+            if let ref = model.selectedSession {
+                VStack(spacing: 0) {
+                    Picker("Mode", selection: $mode) {
+                        Text("Analysis").tag(DetailMode.analysis)
+                        Text("Raw JSONL").tag(DetailMode.raw)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                    .padding(8)
+                    Divider()
+                    switch mode {
+                    case .analysis: analysis
+                    case .raw: RawSessionView(ref: ref)
+                    }
                 }
             } else {
                 ContentUnavailableLabel("Select a session", systemImage: "doc.text.magnifyingglass")
             }
+        }
+        .navigationTitle(mode == .raw ? "Raw JSONL" : "Analysis")
+    }
+
+    @ViewBuilder private var analysis: some View {
+        if model.isParsing {
+            ProgressView("Parsing…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let error = model.errorMessage {
+            ContentUnavailableLabel(error, systemImage: "exclamationmark.triangle")
+        } else if let session = model.loadedSession, let summary = model.summary {
+            ScrollView {
+                SessionDetailContent(session: session, summary: summary)
+                    .padding(20)
+            }
+        } else {
+            Color.clear
         }
     }
 }
@@ -53,9 +77,14 @@ struct SessionDetailContent: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
+            Text(session.displayTitle)
+                .font(.title2).bold()
+                .lineLimit(3)
+                .textSelection(.enabled)
             HStack(spacing: 8) {
-                Text(session.provider.displayName)
-                    .font(.title2).bold()
+                Label(session.provider.displayName, systemImage: session.provider.systemImage)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                 if let model = session.model?.name ?? session.model?.provider {
                     Text(model)
                         .font(.callout)
@@ -66,6 +95,7 @@ struct SessionDetailContent: View {
             Text(session.id)
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(.secondary)
+                .textSelection(.enabled)
             if let cwd = session.cwd {
                 MetaRow(icon: "folder", text: cwd)
             }

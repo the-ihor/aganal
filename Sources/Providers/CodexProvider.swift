@@ -19,8 +19,8 @@ struct CodexProvider: Provider {
         home.appending(path: ".codex/sessions")
     }
 
-    func discover() throws -> [SessionRef] {
-        FileWalk.files(under: sessionsRoot) {
+    func discover(in root: URL) throws -> [SessionRef] {
+        FileWalk.files(under: root) {
             $0.hasPrefix("rollout-") && $0.hasSuffix(".jsonl")
         }.map { file in
             SessionRef(
@@ -38,6 +38,22 @@ struct CodexProvider: Provider {
         let stem = name.replacingOccurrences(of: ".jsonl", with: "")
         let parts = stem.split(separator: "-")
         return parts.count >= 5 ? parts.suffix(5).joined(separator: "-") : stem
+    }
+
+    func previewTitle(_ ref: SessionRef) -> String? {
+        var title: String?
+        JSONL.scanHead(in: ref.path) { line in
+            guard line["type"]?.string == "response_item",
+                  let p = line["payload"],
+                  p["type"]?.string == "message",
+                  Role(token: p["role"]?.string) == .user else { return false }
+            if let cleaned = SessionTitle.clean(Normalize.text(p["content"])) {
+                title = cleaned
+                return true
+            }
+            return false
+        }
+        return title
     }
 
     func parse(_ ref: SessionRef) throws -> Session {

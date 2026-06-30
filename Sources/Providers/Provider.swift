@@ -1,43 +1,43 @@
 import Foundation
 
-/// A source of coding-assistant sessions stored on disk. Each implementation
-/// knows where its provider writes session files, how to enumerate them cheaply,
-/// and how to normalize one into a provider-agnostic `Session`.
-///
-/// To add a provider: add a `ProviderKind` case and conform a type here.
+/// A session *format*: how to enumerate and parse one coding assistant's
+/// on-disk transcripts. A provider is independent of *where* the files live —
+/// `discover(in:)` takes the root — so the same format can read its default
+/// location and any number of custom directories.
 protocol Provider: Sendable {
     var kind: ProviderKind { get }
 
-    /// Root directory the provider writes sessions under.
+    /// The provider's default on-disk root (used for the built-in source).
     var sessionsRoot: URL { get }
 
-    /// Enumerate session files without fully parsing them.
-    func discover() throws -> [SessionRef]
+    /// Enumerate session files under `root` without parsing them.
+    func discover(in root: URL) throws -> [SessionRef]
 
     /// Parse one discovered session into the normalized model.
     func parse(_ ref: SessionRef) throws -> Session
+
+    /// Cheaply read a display title (first real user prompt) from the file head.
+    func previewTitle(_ ref: SessionRef) -> String?
 }
 
 extension Provider {
-    /// All discovered sessions, newest first.
-    func discoverSorted() throws -> [SessionRef] {
-        try discover().sorted {
+    /// Sessions under `root`, newest first.
+    func discoverSorted(in root: URL) throws -> [SessionRef] {
+        try discover(in: root).sorted {
             ($0.modifiedAt ?? .distantPast) > ($1.modifiedAt ?? .distantPast)
         }
     }
-
-    /// Parse every discovered session. Convenient for whole-history analysis;
-    /// can be expensive for large transcript collections.
-    func parseAll() throws -> [Session] {
-        try discover().map(parse)
-    }
 }
 
-/// The set of providers AGANAL knows how to read, using default on-disk
-/// locations under the current user's home directory.
+/// The set of session formats AGANAL can read.
 enum Providers {
     static let all: [any Provider] = [
         CodexProvider(),
         ClaudeCodeProvider(),
     ]
+
+    /// The provider that parses a given format.
+    static func forKind(_ kind: ProviderKind) -> any Provider {
+        all.first { $0.kind == kind } ?? all[0]
+    }
 }

@@ -30,5 +30,8 @@ struct Session: Sendable {
     var model: ModelInfo?
     var cliVersion: String?
     var startedAt: Date?
+    /// Assistant-generated session title, when the provider records one
+    /// (Claude Code's `ai-title`). Preferred over the first prompt for display.
+    var aiTitle: String?
     var events: [Event]
 }

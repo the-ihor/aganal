@@ -12,19 +12,17 @@ import Foundation
 struct ClaudeCodeProvider: Provider {
     let kind = ProviderKind.claudeCode
     let home: URL
-    private let rootOverride: URL?
 
-    init(home: URL = FileManager.default.homeDirectoryForCurrentUser, root: URL? = nil) {
+    init(home: URL = FileManager.default.homeDirectoryForCurrentUser) {
         self.home = home
-        self.rootOverride = root
     }
 
     var sessionsRoot: URL {
-        rootOverride ?? home.appending(path: ".claude/projects")
+        home.appending(path: ".claude/projects")
     }
 
-    func discover() throws -> [SessionRef] {
-        FileWalk.files(under: sessionsRoot) { $0.hasSuffix(".jsonl") }
+    func discover(in root: URL) throws -> [SessionRef] {
+        FileWalk.files(under: root) { $0.hasSuffix(".jsonl") }
             .map { file in
                 SessionRef(
                     provider: kind,
@@ -32,6 +30,30 @@ struct ClaudeCodeProvider: Provider {
                     path: file.url,
                     modifiedAt: file.modified)
             }
+    }
+
+    func previewTitle(_ ref: SessionRef) -> String? {
+        var aiTitle: String?
+        var prompt: String?
+        JSONL.scanHead(in: ref.path) { line in
+            switch line["type"]?.string {
+            case "ai-title":
+                if let title = line["aiTitle"]?.string, !title.isEmpty { aiTitle = title }
+            case "user":
+                // Use plain string content, or only the `text` blocks — never
+                // tool_result/image blocks, which are not the human's prompt.
+                if prompt == nil, let content = line["message"]?["content"] {
+                    let text = content.string ?? (content.array ?? [])
+                        .compactMap { $0["type"]?.string == "text" ? $0["text"]?.string : nil }
+                        .joined(separator: " ")
+                    prompt = SessionTitle.clean(text)
+                }
+            default:
+                break
+            }
+            return false  // scan the whole head; ai-title can follow the first prompt
+        }
+        return aiTitle ?? prompt
     }
 
     func parse(_ ref: SessionRef) throws -> Session {
@@ -52,6 +74,10 @@ struct ClaudeCodeProvider: Provider {
                 Self.appendUser(line["message"], ts: ts, into: &session)
             case "assistant":
                 Self.appendAssistant(line["message"], ts: ts, into: &session)
+            case "ai-title":
+                if let title = line["aiTitle"]?.string, !title.isEmpty {
+                    session.aiTitle = title  // last (newest) wins
+                }
             default:
                 break
             }

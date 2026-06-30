@@ -21,4 +21,31 @@ enum JSONL {
             }
         }
     }
+
+    /// Decode records from only the first `maxBytes` of a file, stopping early
+    /// when `onLine` returns `true`. Used to pull a session title cheaply
+    /// without reading huge transcripts whole. A partial trailing line caused by
+    /// the byte cap is dropped.
+    static func scanHead(
+        in url: URL,
+        maxBytes: Int = 256 * 1024,
+        _ onLine: (JSONValue) -> Bool
+    ) {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return }
+        defer { try? handle.close() }
+        let data = (try? handle.read(upToCount: maxBytes)) ?? Data()
+        guard !data.isEmpty else { return }
+
+        let text = String(decoding: data, as: UTF8.self)
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        if data.count >= maxBytes, lines.count > 1 { lines.removeLast() }
+
+        let decoder = JSONDecoder()
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty, let lineData = trimmed.data(using: .utf8),
+                  let value = try? decoder.decode(JSONValue.self, from: lineData) else { continue }
+            if onLine(value) { return }
+        }
+    }
 }

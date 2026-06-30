@@ -12,4 +12,12 @@ enum ProviderKind: String, Codable, Sendable, CaseIterable {
         case .claudeCode: return "Claude Code"
         }
     }
+
+    /// SF Symbol used for the provider in the sidebar.
+    var systemImage: String {
+        switch self {
+        case .codex: return "chevron.left.forwardslash.chevron.right"
+        case .claudeCode: return "sparkles"
+        }
+    }
 }
