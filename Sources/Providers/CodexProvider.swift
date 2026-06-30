@@ -78,6 +78,9 @@ struct CodexProvider: Provider {
                     session.events.append(event)
                 }
             case "event_msg":
+                if let window = payload?["info"]?["model_context_window"]?.int, window > 0 {
+                    session.contextWindow = window
+                }
                 if let event = Self.parseEventMsg(payload, ts: ts) {
                     session.events.append(event)
                 }
@@ -155,6 +158,9 @@ struct CodexProvider: Provider {
             outputTokens: last["output_tokens"]?.int,
             cachedInputTokens: last["cached_input_tokens"]?.int,
             totalTokens: info?["total_token_usage"]?["total_tokens"]?.int
-                ?? last["total_tokens"]?.int)
+                ?? last["total_tokens"]?.int,
+            // Codex `input_tokens` already includes the cached portion, so it is
+            // the full prompt/context size for this request.
+            contextTokens: last["input_tokens"]?.int)
     }
 }

@@ -7,10 +7,10 @@ struct ToolStat: Identifiable, Sendable {
     let count: Int
 }
 
-/// A token-usage data point at a moment in the session, for charting.
+/// A token-usage data point at a position in the session, for charting.
 struct TokenPoint: Identifiable, Sendable {
     let id: Int
-    let time: Date
+    let eventIndex: Int        // position in the session's event sequence
     let output: Int            // per-turn output tokens
     let cumulativeOutput: Int  // running total of output tokens
     let context: Int           // total/context tokens reported at this point
@@ -26,8 +26,9 @@ struct SessionSummary: Sendable {
     let toolFailures: Int
     let outputTokens: Int
     let peakContextTokens: Int
-    let tools: [ToolStat]       // sorted by count, descending
-    let tokenSeries: [TokenPoint]  // time-ordered, points with timestamps only
+    let tools: [ToolStat]          // sorted by count, descending
+    let tokenSeries: [TokenPoint]      // time-ordered, points with timestamps only
+    let contextBreakdown: [ContextPoint]  // cumulative estimated tokens by category
 
     init(_ session: Session) {
         var counts: [String: Int] = [:]
@@ -35,34 +36,54 @@ struct SessionSummary: Sendable {
         var outputTokens = 0, peak = 0
         var series: [TokenPoint] = []
         var cumulativeOutput = 0
+        var breakdown: [ContextPoint] = []
+        var runningByCategory: [TokenCategory: Int] = [:]
 
-        for event in session.events {
+        for (eventIndex, event) in session.events.enumerated() {
+            var contribution: (TokenCategory, Int)?
             switch event.payload {
-            case .message:
+            case .message(let message):
                 messages += 1
-            case .reasoning:
+                contribution = (message.role == .user ? .user : .assistant,
+                                Self.estimateTokens(message.text))
+            case .reasoning(let reasoningEvent):
                 reasoning += 1
+                contribution = (.reasoning, Self.estimateTokens(reasoningEvent.text))
             case .toolCall(let call):
                 toolCalls += 1
                 counts[call.name, default: 0] += 1
+                contribution = (.toolCalls, Self.estimateTokens(call.arguments))
             case .toolResult(let result):
                 toolResults += 1
                 if result.isError { failures += 1 }
+                contribution = (.toolResults, Self.estimateTokens(result.output))
             case .tokenUsage(let usage):
                 let out = usage.outputTokens ?? 0
                 outputTokens += out
-                peak = max(peak, usage.totalTokens ?? 0)
-                if let time = event.timestamp {
-                    cumulativeOutput += out
-                    series.append(TokenPoint(
-                        id: series.count,
-                        time: time,
-                        output: out,
-                        cumulativeOutput: cumulativeOutput,
-                        context: usage.totalTokens ?? 0))
-                }
+                let context = usage.contextTokens ?? usage.totalTokens ?? 0
+                peak = max(peak, context)
+                cumulativeOutput += out
+                series.append(TokenPoint(
+                    id: series.count,
+                    eventIndex: eventIndex,
+                    output: out,
+                    cumulativeOutput: cumulativeOutput,
+                    context: context))
             case .lifecycle:
                 break
+            }
+
+            // Snapshot cumulative tokens for every category at each text event,
+            // so the stacked area is fully defined at every x.
+            if let (category, tokens) = contribution, tokens > 0 {
+                runningByCategory[category, default: 0] += tokens
+                for category in TokenCategory.allCases {
+                    breakdown.append(ContextPoint(
+                        id: breakdown.count,
+                        eventIndex: eventIndex,
+                        category: category.rawValue,
+                        tokens: runningByCategory[category, default: 0]))
+                }
             }
         }
 
@@ -77,5 +98,11 @@ struct SessionSummary: Sendable {
             .map { ToolStat(name: $0.key, count: $0.value) }
             .sorted { $0.count > $1.count }
         self.tokenSeries = series
+        self.contextBreakdown = breakdown
+    }
+
+    /// Rough token estimate for a piece of text (≈ 4 characters per token).
+    static func estimateTokens(_ text: String) -> Int {
+        text.isEmpty ? 0 : max(text.count / 4, 1)
     }
 }

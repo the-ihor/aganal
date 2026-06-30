@@ -52,6 +52,9 @@ struct TokenUsage: Sendable {
     var outputTokens: Int?
     var cachedInputTokens: Int?
     var totalTokens: Int?
+    /// Full prompt size sent this turn (the "context used"): all input tokens
+    /// including cached/cache-creation. This is what fills the context window.
+    var contextTokens: Int?
 }
 
 /// Session/turn lifecycle markers.

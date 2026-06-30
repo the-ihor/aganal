@@ -146,10 +146,15 @@ struct ClaudeCodeProvider: Provider {
         let input = u["input_tokens"]?.int
         let output = u["output_tokens"]?.int
         guard input != nil || output != nil else { return nil }
+        let cacheRead = u["cache_read_input_tokens"]?.int
+        let cacheCreation = u["cache_creation_input_tokens"]?.int
+        // Full prompt/context size = uncached input + cache read + cache creation.
+        let context = (input ?? 0) + (cacheRead ?? 0) + (cacheCreation ?? 0)
         return TokenUsage(
             inputTokens: input,
             outputTokens: output,
-            cachedInputTokens: u["cache_read_input_tokens"]?.int,
-            totalTokens: (input ?? 0) + (output ?? 0))
+            cachedInputTokens: cacheRead,
+            totalTokens: (input ?? 0) + (output ?? 0),
+            contextTokens: context)
     }
 }

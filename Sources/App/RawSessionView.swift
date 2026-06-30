@@ -60,7 +60,7 @@ struct RawSessionView: View {
         if let record = selectedRecord {
             let pretty = RawRecord.prettyPrinted(record.raw)
             ScrollView {
-                Text(pretty)
+                jsonText(pretty)
                     .font(.system(.body, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -81,6 +81,12 @@ struct RawSessionView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    /// Syntax-highlighted JSON for reasonable sizes; plain text for very large
+    /// records (highlighting every line would be wasteful).
+    private func jsonText(_ pretty: String) -> Text {
+        pretty.count <= 40_000 ? Text(JSONHighlighter.highlight(pretty, limit: 40_000)) : Text(pretty)
     }
 
     private var selectedRecord: RawRecord? {

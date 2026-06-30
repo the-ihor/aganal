@@ -33,5 +33,9 @@ struct Session: Sendable {
     /// Assistant-generated session title, when the provider records one
     /// (Claude Code's `ai-title`). Preferred over the first prompt for display.
     var aiTitle: String?
+    /// Context window reported by the provider in session data (Codex's
+    /// `model_context_window`). nil when not reported — resolved from the
+    /// predefined table via `contextLimit`.
+    var contextWindow: Int?
     var events: [Event]
 }

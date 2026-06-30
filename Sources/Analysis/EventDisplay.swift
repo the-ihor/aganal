@@ -31,8 +31,13 @@ extension Event.Payload {
         case .toolCall(let call): return call.arguments
         case .toolResult(let result): return result.output
         case .tokenUsage(let usage):
-            var parts = ["in \(usage.inputTokens ?? 0)", "out \(usage.outputTokens ?? 0)"]
-            if let total = usage.totalTokens { parts.append("total \(total)") }
+            // Token records are counts only — no text. Show the full breakdown.
+            var parts: [String] = []
+            if let value = usage.inputTokens { parts.append("input \(value)") }
+            if let value = usage.cachedInputTokens { parts.append("cached \(value)") }
+            if let value = usage.outputTokens { parts.append("output \(value)") }
+            if let value = usage.contextTokens { parts.append("context \(value)") }
+            if let value = usage.totalTokens { parts.append("total \(value)") }
             return parts.joined(separator: " · ")
         case .lifecycle(let lifecycle):
             switch lifecycle {
