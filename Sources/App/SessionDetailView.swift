@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 /// Right column: the parsed session's metadata, headline stats, and tool-usage
 /// breakdown.
@@ -48,10 +49,21 @@ struct SessionDetailView: View {
     }
 }
 
+/// Metric plotted in the tokens-over-time chart.
+enum TokenMetric: String, CaseIterable, Identifiable {
+    case cumulative = "Cumulative"
+    case perTurn = "Per turn"
+    case context = "Context"
+    var id: String { rawValue }
+}
+
 struct SessionDetailContent: View {
     let session: Session
     let summary: SessionSummary
 
+    @State private var tokenMetric: TokenMetric = .cumulative
+    @State private var selectedRange: ClosedRange<Date>?
+    @State private var isSelecting = false
     private let columns = [GridItem(.adaptive(minimum: 110), spacing: 10)]
 
     var body: some View {
@@ -71,8 +83,192 @@ struct SessionDetailContent: View {
                 }
             }
             tools
+            if !summary.tokenSeries.isEmpty {
+                tokenChart
+            }
+            eventsSection
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private var tokenChart: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Tokens over time").font(.headline)
+                Spacer()
+                Picker("Metric", selection: $tokenMetric) {
+                    ForEach(TokenMetric.allCases) { metric in
+                        Text(metric.rawValue).tag(metric)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+            }
+            Chart {
+                ForEach(summary.tokenSeries) { point in
+                    AreaMark(
+                        x: .value("Time", point.time),
+                        y: .value(tokenMetric.rawValue, tokenValue(point))
+                    )
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(.linearGradient(
+                        colors: [Color.accentColor.opacity(0.35), Color.accentColor.opacity(0.03)],
+                        startPoint: .top, endPoint: .bottom))
+
+                    LineMark(
+                        x: .value("Time", point.time),
+                        y: .value(tokenMetric.rawValue, tokenValue(point))
+                    )
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(.tint)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                }
+
+                // Drawn once (not per point) so its translucency doesn't stack.
+                if let range = selectedRange {
+                    RectangleMark(
+                        xStart: .value("Start", range.lowerBound),
+                        xEnd: .value("End", range.upperBound)
+                    )
+                    .foregroundStyle(.gray.opacity(0.2))
+                }
+            }
+            // Custom range selection so the only highlight is our own
+            // semi-transparent RectangleMark — the built-in chartXSelection
+            // overlay is opaque gray and can't be restyled.
+            .chartOverlay { proxy in
+                GeometryReader { geo in
+                    if let plotFrame = proxy.plotFrame {
+                        let rect = geo[plotFrame]
+                        Rectangle()
+                            .fill(.clear)
+                            .contentShape(Rectangle())
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { value in
+                                        guard abs(value.translation.width) > 2 else { return }
+                                        isSelecting = true
+                                        let startX = clampedX(value.startLocation.x, in: rect)
+                                        let endX = clampedX(value.location.x, in: rect)
+                                        if let a = proxy.value(atX: startX, as: Date.self),
+                                           let b = proxy.value(atX: endX, as: Date.self) {
+                                            selectedRange = Swift.min(a, b)...Swift.max(a, b)
+                                        }
+                                    }
+                                    .onEnded { value in
+                                        isSelecting = false
+                                        if abs(value.translation.width) <= 2 {
+                                            selectedRange = nil  // a click clears
+                                        }
+                                    }
+                            )
+                    }
+                }
+            }
+            .frame(height: 200)
+
+            Text(selectedRange == nil
+                 ? "Drag across the chart to select a time range."
+                 : "Showing events within the selected range.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func tokenValue(_ point: TokenPoint) -> Int {
+        switch tokenMetric {
+        case .cumulative: return point.cumulativeOutput
+        case .perTurn: return point.output
+        case .context: return point.context
+        }
+    }
+
+    /// Drag x in view space → x relative to the plot area's leading edge,
+    /// clamped to the plot width (so `ChartProxy.value(atX:)` stays in range).
+    private func clampedX(_ x: CGFloat, in rect: CGRect) -> CGFloat {
+        min(max(x - rect.minX, 0), rect.width)
+    }
+
+    @ViewBuilder private var eventsSection: some View {
+        let items = displayedEvents
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text(selectedRange == nil ? "Events" : "Events in selection")
+                    .font(.headline)
+                Text("\(items.count)")
+                    .font(.subheadline).monospacedDigit()
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if selectedRange != nil {
+                    Button("Clear") { selectedRange = nil }
+                        .buttonStyle(.borderless)
+                }
+            }
+            if isSelecting {
+                // Mid-drag: show only the live count, not the re-rendering list.
+                Text("Release to list \(items.count) event\(items.count == 1 ? "" : "s").")
+                    .font(.callout).foregroundStyle(.secondary)
+            } else if items.isEmpty {
+                Text("No events in this range.")
+                    .font(.callout).foregroundStyle(.secondary)
+            } else {
+                LazyVStack(spacing: 6) {
+                    ForEach(items) { EventRow(item: $0) }
+                }
+            }
+        }
+    }
+
+    /// Events to list: the selected time range, or all events when nothing is
+    /// selected.
+    private var displayedEvents: [EventItem] {
+        if let range = selectedRange {
+            return session.events.enumerated().compactMap { index, event in
+                guard let time = event.timestamp, range.contains(time) else { return nil }
+                return EventItem(id: index, time: time, payload: event.payload)
+            }
+        }
+        return session.events.enumerated().map { index, event in
+            EventItem(id: index, time: event.timestamp, payload: event.payload)
+        }
+    }
+
+    private struct EventItem: Identifiable {
+        let id: Int
+        let time: Date?
+        let payload: Event.Payload
+    }
+
+    private struct EventRow: View {
+        let item: EventItem
+
+        var body: some View {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: item.payload.icon)
+                    .foregroundStyle(item.payload.isError ? Color.red : Color.secondary)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(item.payload.kindLabel).font(.callout).bold()
+                        Spacer()
+                        Text(item.time.map { $0.formatted(date: .omitted, time: .standard) } ?? "—")
+                            .font(.caption).monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                    let detail = item.payload.detailText
+                        .split(whereSeparator: \.isNewline).joined(separator: " ")
+                    if !detail.isEmpty {
+                        Text(detail)
+                            .font(.callout).foregroundStyle(.secondary)
+                            .lineLimit(2).truncationMode(.tail)
+                    }
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
+        }
     }
 
     private var header: some View {
