@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0b0f; --ink:#eef0f6; --ink-soft:#c3c7d4; --dim:#8b90a2; --faint:#5c6172;
+    --hair:rgba(255,255,255,.10); --blue:#6d7bff; --blue-lo:#9aa4ff;
+    --disp:"Space Grotesk",-apple-system,system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#000}
+  .card{position:relative;width:1270px;height:760px;overflow:hidden;background:var(--bg);
+    font-family:var(--disp);color:var(--ink);display:none}
+  .card.on{display:block}
+  .grid{position:absolute;inset:0;opacity:.6;
+    background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+    background-size:44px 44px;
+    -webkit-mask-image:radial-gradient(120% 80% at 50% 0%,#000 30%,transparent 82%)}
+  .glow{position:absolute;top:-32%;left:50%;transform:translateX(-50%);width:120%;height:90%;
+    background:radial-gradient(46% 60% at 60% 0%,rgba(109,123,255,.30),transparent 68%);filter:blur(70px);opacity:.85}
+  .in{position:absolute;inset:0;z-index:2}
+
+  /* cover */
+  .cover{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px}
+  .cover .lock{display:flex;align-items:center;gap:22px}
+  .cover img{width:120px;height:120px;filter:drop-shadow(0 24px 50px rgba(0,0,0,.6))}
+  .cover h1{font-size:132px;font-weight:700;letter-spacing:-.04em;line-height:1}
+  .cover .tag{font-size:38px;color:var(--ink-soft);font-weight:500;letter-spacing:-.01em;margin-top:6px}
+  .cover .meta{font-family:var(--mono);font-size:20px;color:var(--dim);letter-spacing:.04em;margin-top:10px}
+  .cover .meta b{color:var(--blue-lo);font-weight:500}
+
+  /* feature: copy left, screenshot bleeding right */
+  .feature{display:grid;grid-template-columns:430px 1fr;height:100%}
+  .feature .copy{padding:76px 0 76px 76px;display:flex;flex-direction:column;justify-content:center}
+  .kk{font-family:var(--mono);font-size:16px;letter-spacing:.16em;text-transform:uppercase;color:var(--blue-lo)}
+  .feature h2{font-size:60px;font-weight:700;letter-spacing:-.035em;line-height:1.02;margin-top:16px}
+  .feature h2 .ac{color:var(--blue)}
+  .feature p{font-size:24px;line-height:1.45;color:var(--dim);margin-top:20px;max-width:22ch}
+  .feature .brand{margin-top:auto;display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:18px;color:var(--faint)}
+  .feature .brand img{width:30px;height:30px;border-radius:8px}
+  .media{position:relative;overflow:hidden}
+  .media img.shot{position:absolute;top:50%;left:40px;transform:translateY(-50%);width:820px;
+    filter:drop-shadow(0 46px 80px rgba(0,0,0,.62))}
+
+  /* providers card */
+  .prov{padding:76px}
+  .prov h2{font-size:72px;font-weight:700;letter-spacing:-.04em}
+  .prov h2 .ac{color:var(--blue)}
+  .prov .kk{margin-bottom:14px}
+  .pills{display:flex;flex-wrap:wrap;gap:16px;margin-top:44px;max-width:1000px}
+  .pill{display:flex;align-items:center;gap:12px;border:1px solid var(--hair);border-radius:999px;
+    padding:16px 28px;background:rgba(255,255,255,.02);font-size:34px;font-weight:600}
+  .pill .dot{width:16px;height:16px;border-radius:50%}
+  .prov .foot{position:absolute;left:76px;bottom:64px;display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:18px;color:var(--faint)}
+  .prov .foot img{width:30px;height:30px;border-radius:8px}
+</style>
+</head>
+<body>
+
+<!-- 0 · cover -->
+<section class="card" data-card="0">
+  <div class="grid"></div><div class="glow"></div>
+  <div class="in cover">
+    <div class="lock"><img src="/docs/assets/icon-1024.png" alt=""><h1>AGANAL</h1></div>
+    <div class="tag">See what your AI coding agents actually did.</div>
+    <div class="meta">agentic sessions analysis · <b>free · open source · macOS</b></div>
+  </div>
+</section>
+
+<!-- 1 · analysis -->
+<section class="card" data-card="1">
+  <div class="grid"></div><div class="glow"></div>
+  <div class="in feature">
+    <div class="copy">
+      <span class="kk">// analysis</span>
+      <h2>The whole run,<br>as a <span class="ac">dashboard.</span></h2>
+      <p>Tokens over time, tool usage, context-by-category, retries — per session.</p>
+      <div class="brand"><img src="/docs/assets/icon-1024.png" alt="">aganal.the-ihor.com</div>
+    </div>
+    <div class="media"><img class="shot" src="/docs/assets/shots/analysis.webp" alt=""></div>
+  </div>
+</section>
+
+<!-- 2 · events -->
+<section class="card" data-card="2">
+  <div class="grid"></div><div class="glow"></div>
+  <div class="in feature">
+    <div class="copy">
+      <span class="kk">// events</span>
+      <h2>Every event,<br><span class="ac">filtered.</span></h2>
+      <p>Messages, reasoning, tool calls & results — filter, search, jump to errors.</p>
+      <div class="brand"><img src="/docs/assets/icon-1024.png" alt="">aganal.the-ihor.com</div>
+    </div>
+    <div class="media"><img class="shot" src="/docs/assets/shots/events.webp" alt=""></div>
+  </div>
+</section>
+
+<!-- 3 · agent -->
+<section class="card" data-card="3">
+  <div class="grid"></div><div class="glow"></div>
+  <div class="in feature">
+    <div class="copy">
+      <span class="kk">// hand-off</span>
+      <h2>Hand it to<br>an <span class="ac">agent.</span></h2>
+      <p>A ready-to-paste prompt — analyze, find errors, cost review — plus a CLI.</p>
+      <div class="brand"><img src="/docs/assets/icon-1024.png" alt="">aganal.the-ihor.com</div>
+    </div>
+    <div class="media"><img class="shot" src="/docs/assets/shots/agent.webp" alt=""></div>
+  </div>
+</section>
+
+<!-- 4 · raw -->
+<section class="card" data-card="4">
+  <div class="grid"></div><div class="glow"></div>
+  <div class="in feature">
+    <div class="copy">
+      <span class="kk">// raw jsonl</span>
+      <h2>Down to the<br>raw <span class="ac">record.</span></h2>
+      <p>Every line as a typed row, with the exact underlying record, highlighted.</p>
+      <div class="brand"><img src="/docs/assets/icon-1024.png" alt="">aganal.the-ihor.com</div>
+    </div>
+    <div class="media"><img class="shot" src="/docs/assets/shots/raw-jsonl.webp" alt=""></div>
+  </div>
+</section>
+
+<!-- 5 · providers -->
+<section class="card" data-card="5">
+  <div class="grid"></div><div class="glow"></div>
+  <div class="in prov">
+    <span class="kk">// sources</span>
+    <h2>One lens for <span class="ac">every agent.</span></h2>
+    <div class="pills">
+      <span class="pill"><span class="dot" style="background:#d97757"></span>Claude Code</span>
+      <span class="pill"><span class="dot" style="background:#e8e8e8"></span>Codex</span>
+      <span class="pill"><span class="dot" style="background:#2a73f5"></span>Gemini CLI</span>
+      <span class="pill"><span class="dot" style="background:#615ced"></span>Qwen Code</span>
+      <span class="pill"><span class="dot" style="background:#e8e8e8"></span>Cursor</span>
+      <span class="pill"><span class="dot" style="background:#e8e8e8"></span>opencode</span>
+      <span class="pill"><span class="dot" style="background:#0f9d8a"></span>Antigravity</span>
+      <span class="pill"><span class="dot" style="background:#6d7bff"></span>Any directory</span>
+    </div>
+    <div class="foot"><img src="/docs/assets/icon-1024.png" alt="">private · local-only · reads files already on disk</div>
+  </div>
+</section>
+
+<script>
+  var n = new URLSearchParams(location.search).get('card') || '0';
+  var el = document.querySelector('.card[data-card="'+n+'"]');
+  if (el) el.classList.add('on');
+</script>
+</body>
+</html>
