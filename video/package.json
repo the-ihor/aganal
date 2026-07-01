@@ -1,0 +1,22 @@
+{
+  "name": "aganal-hero-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AGANAL hero film — real app screenshots + kinetic UI, built in Remotion (video-as-React).",
+  "scripts": {
+    "dev": "remotion studio",
+    "render": "remotion render Hero out/hero.mp4",
+    "still": "remotion still Hero out/frame.png --frame=30"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "typescript": "^5.6.3"
+  }
+}
