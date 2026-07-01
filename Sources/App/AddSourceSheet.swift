@@ -23,12 +23,12 @@ struct AddSourceSheet: View {
 
             Form {
                 LabeledContent("Directory") {
-                    HStack {
-                        Text(path.isEmpty ? "No folder chosen" : path)
-                            .foregroundStyle(path.isEmpty ? .secondary : .primary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer()
+                    HStack(spacing: 8) {
+                        TextField("Directory", text: $path,
+                                  prompt: Text("~/.claude/projects or /path/to/sessions"))
+                            .textFieldStyle(.roundedBorder)
+                            .labelsHidden()
+                            .onSubmit { applyManualPath() }
                         Button("Choose…") { choose() }
                     }
                 }
@@ -41,17 +41,23 @@ struct AddSourceSheet: View {
             }
             .formStyle(.grouped)
 
+            if !path.isEmpty, !pathIsValidDirectory {
+                Label("This folder doesn't exist.", systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
             HStack {
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Button("Add") {
-                    let (n, k, p) = (name, kind, path)
+                    let (n, k, p) = (name, kind, resolvedPath)
                     Task { await model.addCustomSource(name: n, kind: k, path: p) }
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(path.isEmpty)
+                .disabled(!pathIsValidDirectory)
             }
         }
         .padding(20)
@@ -63,10 +69,35 @@ struct AddSourceSheet: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
+        panel.showsHiddenFiles = true   // session dirs (~/.claude, ~/.codex) are hidden
         panel.prompt = "Choose"
         panel.message = "Choose a directory containing session files"
+        if path.isEmpty {
+            panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
+        }
         guard panel.runModal() == .OK, let url = panel.url else { return }
         path = url.path
+        if name.isEmpty { name = url.lastPathComponent }
+        kind = Self.detectKind(url)
+    }
+
+    /// The typed path with a leading `~` expanded to the home directory.
+    private var resolvedPath: String {
+        (path as NSString).expandingTildeInPath
+    }
+
+    private var pathIsValidDirectory: Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: resolvedPath, isDirectory: &isDirectory)
+            && isDirectory.boolValue
+    }
+
+    /// Normalize a typed path and, if it resolves to a real directory, fill the
+    /// name and auto-detect its format.
+    private func applyManualPath() {
+        guard pathIsValidDirectory else { return }
+        path = resolvedPath
+        let url = URL(fileURLWithPath: resolvedPath, isDirectory: true)
         if name.isEmpty { name = url.lastPathComponent }
         kind = Self.detectKind(url)
     }

@@ -33,8 +33,8 @@ struct ContentView: View {
     }
 }
 
-/// Left column: configured sources, grouped into built-in providers and
-/// user-added custom directories, each with its discovered session count.
+/// Left column: one flat list of configured sources — built-in providers first,
+/// then user-added custom directories — each showing its path and session count.
 struct SourceSidebar: View {
     @EnvironmentObject var model: AppModel
     @Binding var showingAdd: Bool
@@ -44,26 +44,19 @@ struct SourceSidebar: View {
 
     var body: some View {
         List(selection: $model.selectedSourceID) {
-            Section("Providers") {
-                ForEach(builtIns) { entry in
-                    SourceRow(entry: entry).tag(entry.id)
-                }
-            }
-            if !customs.isEmpty {
-                Section("Custom") {
-                    ForEach(customs) { entry in
-                        SourceRow(entry: entry)
-                            .tag(entry.id)
-                            .contextMenu {
-                                Button("Reveal in Finder") {
-                                    NSWorkspace.shared.activateFileViewerSelecting([entry.source.root])
-                                }
-                                Button("Remove", role: .destructive) {
-                                    model.removeSource(entry.id)
-                                }
+            ForEach(builtIns + customs) { entry in
+                SourceRow(entry: entry)
+                    .tag(entry.id)
+                    .contextMenu {
+                        Button("Reveal in Finder") {
+                            NSWorkspace.shared.activateFileViewerSelecting([entry.source.root])
+                        }
+                        if !entry.source.isBuiltIn {
+                            Button("Remove", role: .destructive) {
+                                model.removeSource(entry.id)
                             }
+                        }
                     }
-                }
             }
         }
         .listStyle(.sidebar)
@@ -88,9 +81,36 @@ struct SourceRow: View {
     let entry: AppModel.SourceEntry
 
     var body: some View {
-        Label(entry.source.name, systemImage: entry.source.kind.systemImage)
-            .badge(entry.refs.count)
-            .help(entry.source.path)
+        HStack(spacing: 10) {
+            ProviderLogo(kind: entry.source.kind, size: 18)
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.source.name)
+                    .font(.callout)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Text(displayPath)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            Spacer(minLength: 4)
+            Text("\(entry.refs.count)")
+                .font(.caption).monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 3)
+        .help(entry.source.path)
+    }
+
+    /// The source path with the home directory abbreviated to `~`.
+    private var displayPath: String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let path = entry.source.path
+        if path == home { return "~" }
+        if path.hasPrefix(home + "/") { return "~" + path.dropFirst(home.count) }
+        return path
     }
 }
 
@@ -123,7 +143,7 @@ struct SessionRow: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title ?? ref.sessionID)
                 .font(.callout)
-                .lineLimit(2)
+                .lineLimit(1)
                 .truncationMode(.tail)
                 .foregroundStyle(title == nil ? .secondary : .primary)
             if let date = ref.modifiedAt {

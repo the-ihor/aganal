@@ -100,6 +100,14 @@ struct CodexProvider: Provider {
         if let providerName = p["model_provider"]?.string {
             session.model = ModelInfo(provider: providerName, name: session.model?.name)
         }
+        // Codex persists its base/system instructions in session_meta (either a
+        // plain string or `{ text: … }`). Surface them as a system message so the
+        // full prompt is visible in the Events list.
+        if let instructions = p["base_instructions"]?.string
+            ?? p["base_instructions"]?["text"]?.string, !instructions.isEmpty {
+            session.events.append(Event(
+                timestamp: ts, payload: .message(Message(role: .system, text: instructions))))
+        }
     }
 
     private static func parseResponseItem(_ payload: JSONValue?, ts: Date?) -> Event? {

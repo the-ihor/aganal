@@ -7,13 +7,41 @@ struct SessionDetailView: View {
     @EnvironmentObject var model: AppModel
     @State private var mode: DetailMode = .analysis
 
+    // Event-index window, shared across tabs. Lifted here so it lives above the
+    // tab selector and applies to both the Analysis and Events views.
+    @State private var lowerFraction = 0.0
+    @State private var upperFraction = 1.0
+    @State private var appliedRange: ClosedRange<Int>?
+
+    // Metrics recomputed for the selected window; nil means "use the whole
+    // session". Recomputed only on commit (not while dragging the slider).
+    @State private var scopedSummary: SessionSummary?
+
+    // Filters applied on the Events tab; also the target of a tool-usage click.
+    @State private var filter = EventFilter()
+
     var body: some View {
         Group {
             if let ref = model.selectedSession {
                 VStack(spacing: 0) {
+                    if mode != .raw, let session = model.loadedSession,
+                       session.events.count > 1 {
+                        EventRangeControl(
+                            eventCount: session.events.count,
+                            lowerFraction: $lowerFraction,
+                            upperFraction: $upperFraction,
+                            appliedRange: $appliedRange)
+                            .padding(.horizontal, 12)
+                            .padding(.top, 10)
+                            .padding(.bottom, 8)
+                        Divider()
+                    }
                     Picker("Mode", selection: $mode) {
                         Text("Analysis").tag(DetailMode.analysis)
-                        Text("Raw JSONL").tag(DetailMode.raw)
+                        Text("Events").tag(DetailMode.events)
+                        if rawAvailable {
+                            Text("Raw JSONL").tag(DetailMode.raw)
+                        }
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
@@ -22,14 +50,35 @@ struct SessionDetailView: View {
                     Divider()
                     switch mode {
                     case .analysis: analysis
-                    case .raw: RawSessionView(ref: ref)
+                    case .events: events
+                    case .raw: if rawAvailable { RawSessionView(ref: ref) } else { analysis }
                     }
                 }
+                // Reset the shared window and filters whenever a session loads;
+                // also leave Raw if it isn't available for this provider.
+                .onChange(of: model.selectedSession?.id) {
+                    clearRange()
+                    filter = EventFilter()
+                    if mode == .raw, !rawAvailable { mode = .analysis }
+                }
+                // Rescope the analysis metrics when the committed window changes.
+                .onChange(of: appliedRange) { recomputeScopedSummary() }
             } else {
                 ContentUnavailableLabel("Select a session", systemImage: "doc.text.magnifyingglass")
             }
         }
-        .navigationTitle(mode == .raw ? "Raw JSONL" : "Analysis")
+        .navigationTitle(navigationTitle)
+    }
+
+    /// opencode stores sessions in SQLite, not a JSONL file, so Raw is hidden.
+    private var rawAvailable: Bool { model.selectedSession?.provider != .opencode }
+
+    private var navigationTitle: String {
+        switch mode {
+        case .analysis: return "Analysis"
+        case .events: return "Events"
+        case .raw: return "Raw JSONL"
+        }
     }
 
     @ViewBuilder private var analysis: some View {
@@ -40,11 +89,48 @@ struct SessionDetailView: View {
             ContentUnavailableLabel(error, systemImage: "exclamationmark.triangle")
         } else if let session = model.loadedSession, let summary = model.summary {
             ScrollView {
-                SessionDetailContent(session: session, summary: summary)
+                SessionDetailContent(session: session,
+                                     summary: scopedSummary ?? summary,
+                                     appliedRange: appliedRange,
+                                     onSelectTool: showEvents(forTool:))
                     .padding(20)
             }
         } else {
             Color.clear
+        }
+    }
+
+    @ViewBuilder private var events: some View {
+        if model.isParsing {
+            ProgressView("Parsing…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let error = model.errorMessage {
+            ContentUnavailableLabel(error, systemImage: "exclamationmark.triangle")
+        } else if let session = model.loadedSession {
+            EventsView(session: session, appliedRange: appliedRange, filter: $filter)
+        } else {
+            Color.clear
+        }
+    }
+
+    /// Filter the Events tab to one tool's calls and results, then switch to it.
+    private func showEvents(forTool name: String) {
+        filter = EventFilter(kinds: [.toolCall, .toolResult], toolName: name)
+        mode = .events
+    }
+
+    private func clearRange() {
+        lowerFraction = 0
+        upperFraction = 1
+        appliedRange = nil
+    }
+
+    /// Recompute the range-scoped metrics, or drop back to the whole session.
+    private func recomputeScopedSummary() {
+        if let range = appliedRange, let session = model.loadedSession {
+            scopedSummary = SessionSummary(session, range: range)
+        } else {
+            scopedSummary = nil
         }
     }
 }
@@ -59,18 +145,17 @@ enum TokenMetric: String, CaseIterable, Identifiable {
 struct SessionDetailContent: View {
     let session: Session
     let summary: SessionSummary
+    let appliedRange: ClosedRange<Int>?          // committed event-index window (from parent)
+    var onSelectTool: (String) -> Void = { _ in }
 
     @State private var tokenMetric: TokenMetric = .cumulative
-    @State private var appliedRange: ClosedRange<Int>?    // committed event-index window
-    @State private var lowerFraction = 0.0                // live range-slider handles
-    @State private var upperFraction = 1.0
     private let columns = [GridItem(.adaptive(minimum: 110), spacing: 10)]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             header
             LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
-                StatTile(label: "Events", value: session.events.count.formatted())
+                StatTile(label: "Events", value: summary.events.formatted())
                 StatTile(label: "Messages", value: summary.messages.formatted())
                 StatTile(label: "Reasoning", value: summary.reasoning.formatted())
                 StatTile(label: "Tool calls", value: summary.toolCalls.formatted())
@@ -88,16 +173,12 @@ struct SessionDetailContent: View {
                 }
             }
             tools
-            if fullRange != nil {
-                rangeControl
-            }
             if !summary.tokenSeries.isEmpty {
                 tokenChart
             }
             if !summary.contextBreakdown.isEmpty {
                 contextChart
             }
-            eventsSection
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -198,51 +279,6 @@ struct SessionDetailContent: View {
     /// The x-domain both charts render: the committed range, else the full span.
     private var chartDomain: ClosedRange<Int>? { appliedRange ?? fullRange }
 
-    @ViewBuilder private var rangeControl: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Event range").font(.headline)
-                Spacer()
-                if lowerFraction > 0.001 || upperFraction < 0.999 {
-                    Button("Reset") { resetRange() }.buttonStyle(.borderless)
-                }
-            }
-            RangeSlider(lower: $lowerFraction, upper: $upperFraction,
-                        steps: eventCount, onCommit: commitRange)
-                .frame(height: 22)
-            Text(rangeLabel).font(.caption).foregroundStyle(.secondary)
-        }
-    }
-
-    /// Nearest event index for a 0...1 slider fraction.
-    private func eventIndex(_ fraction: Double, maxIndex: Int) -> Int {
-        min(max(Int((fraction * Double(maxIndex)).rounded()), 0), maxIndex)
-    }
-
-    private var rangeLabel: String {
-        guard eventCount >= 2 else { return "" }
-        let maxIndex = eventCount - 1
-        let lo = eventIndex(lowerFraction, maxIndex: maxIndex)
-        let hi = eventIndex(upperFraction, maxIndex: maxIndex)
-        if lo <= 0, hi >= maxIndex { return "All \(eventCount) events" }
-        return "Events \(lo + 1)–\(hi + 1) of \(eventCount)"
-    }
-
-    /// Apply the slider window once, on release.
-    private func commitRange() {
-        guard eventCount >= 2 else { appliedRange = nil; return }
-        let maxIndex = eventCount - 1
-        let lo = eventIndex(lowerFraction, maxIndex: maxIndex)
-        let hi = max(eventIndex(upperFraction, maxIndex: maxIndex), lo)
-        appliedRange = (lo <= 0 && hi >= maxIndex) ? nil : lo...hi
-    }
-
-    private func resetRange() {
-        lowerFraction = 0
-        upperFraction = 1
-        appliedRange = nil
-    }
-
     // MARK: - Charts
 
     /// Token points mapped to the selected metric, plotted by event index.
@@ -281,131 +317,20 @@ struct SessionDetailContent: View {
         let value: Int
     }
 
-    @ViewBuilder private var eventsSection: some View {
-        let items = displayedEvents
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(appliedRange == nil ? "Events" : "Events in range")
-                    .font(.headline)
-                Text("\(items.count)")
-                    .font(.subheadline).monospacedDigit()
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if appliedRange != nil {
-                    Button("Clear") { resetRange() }
-                        .buttonStyle(.borderless)
-                }
-            }
-            if items.isEmpty {
-                Text("No events in this range.")
-                    .font(.callout).foregroundStyle(.secondary)
-            } else {
-                LazyVStack(spacing: 6) {
-                    ForEach(items) { EventRow(item: $0) }
-                }
-            }
-        }
-    }
-
-    /// Events to list: the committed event-index range, or all events.
-    private var displayedEvents: [EventItem] {
-        session.events.enumerated().compactMap { index, event in
-            if let range = appliedRange, !range.contains(index) { return nil }
-            return EventItem(id: index, time: event.timestamp, payload: event.payload)
-        }
-    }
-
-    private struct EventItem: Identifiable {
-        let id: Int
-        let time: Date?
-        let payload: Event.Payload
-    }
-
-    private struct EventRow: View {
-        let item: EventItem
-        @State private var expanded = false
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: 6) {
-                Button {
-                    withAnimation(.snappy(duration: 0.15)) { expanded.toggle() }
-                } label: {
-                    summaryRow
-                }
-                .buttonStyle(.plain)
-
-                if expanded {
-                    expandedContent
-                }
-            }
-            .padding(8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
-        }
-
-        private var summaryRow: some View {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: item.payload.icon)
-                    .foregroundStyle(item.payload.isError ? Color.red : Color.secondary)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(item.payload.kindLabel).font(.callout).bold()
-                        Spacer()
-                        Text(item.time.map { $0.formatted(date: .omitted, time: .standard) } ?? "—")
-                            .font(.caption).monospacedDigit()
-                            .foregroundStyle(.secondary)
-                        Image(systemName: expanded ? "chevron.down" : "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    if !expanded {
-                        let detail = item.payload.detailText
-                            .split(whereSeparator: \.isNewline).joined(separator: " ")
-                        if !detail.isEmpty {
-                            Text(detail)
-                                .font(.callout).foregroundStyle(.secondary)
-                                .lineLimit(2).truncationMode(.tail)
-                        }
-                    }
-                }
-            }
-            .contentShape(Rectangle())
-        }
-
-        @ViewBuilder private var expandedContent: some View {
-            let text = item.payload.detailText
-            if text.isEmpty {
-                Text("(no content)").font(.caption).foregroundStyle(.tertiary)
-            } else if let json = JSONHighlighter.highlightedIfJSON(text) {
-                Text(json)
-                    .font(.system(.caption, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Text(capped(text))
-                    .font(.system(.caption, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-
-        private func capped(_ text: String) -> String {
-            let limit = 8_000
-            return text.count > limit ? String(text.prefix(limit)) + "\n… (truncated)" : text
-        }
-    }
-
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(session.displayTitle)
                 .font(.title2).bold()
-                .lineLimit(3)
+                .lineLimit(2)
+                .truncationMode(.tail)
                 .textSelection(.enabled)
             HStack(spacing: 8) {
-                Label(session.provider.displayName, systemImage: session.provider.systemImage)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    ProviderLogo(kind: session.provider, size: 15)
+                    Text(session.provider.displayName)
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
                 if let model = session.model?.name ?? session.model?.provider {
                     Text(model)
                         .font(.callout)
@@ -439,7 +364,11 @@ struct SessionDetailContent: View {
                     .font(.headline)
                 let maxCount = summary.tools.first?.count ?? 1
                 ForEach(summary.tools) { tool in
-                    ToolBar(name: tool.name, count: tool.count, maxCount: maxCount)
+                    Button { onSelectTool(tool.name) } label: {
+                        ToolBar(name: tool.name, count: tool.count, maxCount: maxCount)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Show \(tool.name) events")
                 }
             }
         }
@@ -450,6 +379,61 @@ private extension View {
     /// Constrain the chart's x-axis to `range` (zoom); unchanged when nil.
     @ViewBuilder func chartXDomain(_ range: ClosedRange<Int>?) -> some View {
         if let range { chartXScale(domain: range) } else { self }
+    }
+}
+
+/// Event-index window selector shown above the tab picker. Owns the live
+/// slider fractions (bound from the parent so the window survives tab switches)
+/// and commits the chosen span to `appliedRange` on release.
+private struct EventRangeControl: View {
+    let eventCount: Int
+    @Binding var lowerFraction: Double
+    @Binding var upperFraction: Double
+    @Binding var appliedRange: ClosedRange<Int>?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Event range").font(.headline)
+                Spacer()
+                if lowerFraction > 0.001 || upperFraction < 0.999 {
+                    Button("Reset") { reset() }.buttonStyle(.borderless)
+                }
+            }
+            RangeSlider(lower: $lowerFraction, upper: $upperFraction,
+                        steps: eventCount, onCommit: commit)
+                .frame(height: 22)
+            Text(label).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Nearest event index for a 0...1 slider fraction.
+    private func eventIndex(_ fraction: Double, maxIndex: Int) -> Int {
+        min(max(Int((fraction * Double(maxIndex)).rounded()), 0), maxIndex)
+    }
+
+    private var label: String {
+        guard eventCount >= 2 else { return "" }
+        let maxIndex = eventCount - 1
+        let lo = eventIndex(lowerFraction, maxIndex: maxIndex)
+        let hi = eventIndex(upperFraction, maxIndex: maxIndex)
+        if lo <= 0, hi >= maxIndex { return "All \(eventCount) events" }
+        return "Events \(lo + 1)–\(hi + 1) of \(eventCount)"
+    }
+
+    /// Apply the slider window once, on release.
+    private func commit() {
+        guard eventCount >= 2 else { appliedRange = nil; return }
+        let maxIndex = eventCount - 1
+        let lo = eventIndex(lowerFraction, maxIndex: maxIndex)
+        let hi = max(eventIndex(upperFraction, maxIndex: maxIndex), lo)
+        appliedRange = (lo <= 0 && hi >= maxIndex) ? nil : lo...hi
+    }
+
+    private func reset() {
+        lowerFraction = 0
+        upperFraction = 1
+        appliedRange = nil
     }
 }
 
@@ -580,6 +564,9 @@ private struct ToolBar: View {
                     .font(.callout)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
             GeometryReader { geo in
                 Capsule()

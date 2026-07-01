@@ -32,8 +32,13 @@ extension Provider {
 /// The set of session formats AGANAL can read.
 enum Providers {
     static let all: [any Provider] = [
-        CodexProvider(),
         ClaudeCodeProvider(),
+        CodexProvider(),
+        GeminiProvider.geminiCli(),
+        GeminiProvider.qwenCode(),
+        CursorProvider(),
+        OpenCodeProvider(),
+        AntigravityProvider(),
     ]
 
     /// The provider that parses a given format.

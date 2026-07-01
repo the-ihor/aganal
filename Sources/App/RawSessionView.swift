@@ -4,6 +4,7 @@ import AppKit
 /// Which view of a session the detail pane shows.
 enum DetailMode: Hashable {
     case analysis
+    case events
     case raw
 }
 

@@ -19,6 +19,7 @@ struct TokenPoint: Identifiable, Sendable {
 /// Aggregate, provider-agnostic metrics over a normalized `Session` — the
 /// per-session view AGANAL presents. Headlined by tool usage.
 struct SessionSummary: Sendable {
+    let events: Int
     let messages: Int
     let reasoning: Int
     let toolCalls: Int
@@ -30,8 +31,13 @@ struct SessionSummary: Sendable {
     let tokenSeries: [TokenPoint]      // time-ordered, points with timestamps only
     let contextBreakdown: [ContextPoint]  // cumulative estimated tokens by category
 
-    init(_ session: Session) {
+    /// Aggregate metrics over `session`. When `range` is given, only events whose
+    /// index falls in it are counted, so the whole page can scope to a selection.
+    /// Event indices in the chart series stay absolute so they align with the
+    /// (range-zoomed) chart x-axis; cumulative totals restart within the range.
+    init(_ session: Session, range: ClosedRange<Int>? = nil) {
         var counts: [String: Int] = [:]
+        var events = 0
         var messages = 0, reasoning = 0, toolCalls = 0, toolResults = 0, failures = 0
         var outputTokens = 0, peak = 0
         var series: [TokenPoint] = []
@@ -40,6 +46,8 @@ struct SessionSummary: Sendable {
         var runningByCategory: [TokenCategory: Int] = [:]
 
         for (eventIndex, event) in session.events.enumerated() {
+            if let range, !range.contains(eventIndex) { continue }
+            events += 1
             var contribution: (TokenCategory, Int)?
             switch event.payload {
             case .message(let message):
@@ -87,6 +95,7 @@ struct SessionSummary: Sendable {
             }
         }
 
+        self.events = events
         self.messages = messages
         self.reasoning = reasoning
         self.toolCalls = toolCalls
