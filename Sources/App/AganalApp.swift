@@ -1,8 +1,8 @@
 import SwiftUI
 import AppKit
 
-/// AGANAL macOS app entry point.
-@main
+/// AGANAL macOS app. Launched from `main.swift` (which also routes `AGANAL mcp`
+/// to the stdio MCP server without starting the UI).
 struct AganalApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var model = AppModel()
