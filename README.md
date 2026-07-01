@@ -97,12 +97,33 @@ credentials (a `notarytool` keychain profile via `NOTARY_PROFILE`, an app-specif
 password stored as `AGANAL-ASC`, or `AC_PASS` in the environment). App metadata
 lives in `Resources/Info.plist`; the icon is `Sources/Resources/AppIcon.icns`.
 
+## Command-line tool
+
+AGANAL is also a self-documenting CLI, so an agent (or you) can just shell out to
+it — no server to configure. It prints JSON to stdout:
+
+```bash
+swift run AGANAL --help                                 # from source
+/Applications/AGANAL.app/Contents/MacOS/AGANAL --help   # from an installed build
+```
+
+Commands: `sources`, `sessions`, `search <query>`, `analytics <path>`,
+`events <path>`, `overview` — run `aganal <command> --help` for options. The
+usual flow is to find a session and analyze it; the provider is inferred from the
+path:
+
+```bash
+aganal sessions --limit 1       # newest session — note its "path"
+aganal analytics <path>         # full analytics for it
+aganal search "auth" --content  # find sessions mentioning "auth"
+```
+
 ## MCP server
 
-AGANAL doubles as a [Model Context Protocol](https://modelcontextprotocol.io)
-server, so an AI client can query your session analytics directly. Run it with
-the `mcp` subcommand — it speaks JSON-RPC over stdio and reuses the same
-providers and analysis as the app:
+The same operations are available over the
+[Model Context Protocol](https://modelcontextprotocol.io), so an MCP client can
+query your session analytics directly. Run it with the `mcp` subcommand — it
+speaks JSON-RPC over stdio and reuses the same providers and analysis as the app:
 
 ```bash
 swift run AGANAL mcp                                   # from source
