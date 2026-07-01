@@ -24,6 +24,12 @@ struct AganalApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        // Set the Dock/app icon at runtime: launched via `swift run`, there is
+        // no signed bundle to carry an AppIcon asset, so load it from resources.
+        if let url = Bundle.module.url(forResource: "AppIcon-1024", withExtension: "png"),
+           let icon = NSImage(contentsOf: url) {
+            NSApp.applicationIconImage = icon
+        }
         NSApp.activate()
     }
 

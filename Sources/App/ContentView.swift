@@ -63,6 +63,18 @@ struct SourceSidebar: View {
         .overlay {
             if model.isDiscovering { ProgressView("Discovering…") }
         }
+        .safeAreaInset(edge: .top) {
+            HStack(spacing: 9) {
+                AppLogo(size: 26)
+                Text("AGANAL")
+                    .font(.system(.title3, design: .rounded).weight(.semibold))
+                    .tracking(0.5)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+        }
         .safeAreaInset(edge: .bottom) {
             Button {
                 showingAdd = true

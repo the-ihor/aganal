@@ -5,6 +5,10 @@ let package = Package(
     name: "AGANAL",
     platforms: [.macOS(.v14)],
     targets: [
-        .executableTarget(name: "AGANAL", path: "Sources")
+        .executableTarget(
+            name: "AGANAL",
+            path: "Sources",
+            resources: [.process("Resources")]
+        )
     ]
 )
