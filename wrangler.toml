@@ -1,0 +1,8 @@
+# Cloudflare Pages configuration for the AGANAL website (static, no functions).
+
+name = "aganal"
+pages_build_output_dir = "./docs"
+compatibility_date = "2026-07-01"
+
+[vars]
+PUBLIC_BASE_URL = "https://aganal.the-ihor.com"

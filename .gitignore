@@ -3,6 +3,11 @@
 .swiftpm/
 Package.resolved
 
+# Packaging output & local secrets
+build/
+.env
+.env.local
+
 # Xcode
 *.xcodeproj
 *.xcworkspace

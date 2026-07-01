@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AGANAL — Analytics for your AI coding agents (native macOS)</title>
+  <meta name="description" content="AGANAL reads your AI coding sessions straight off disk and turns them into metrics — tokens over time, tool calls, context-window pressure, retries — across Claude Code, Codex, Gemini, Cursor, opencode and more. Native, private, open source.">
+  <meta name="author" content="Ihor Herasymovych">
+  <meta name="keywords" content="AI agent analytics, Claude Code analysis, coding agent metrics, tool call analytics, token usage over time, context window usage, session inspector, Codex sessions, Gemini CLI, Cursor agent transcripts, opencode, JSONL session viewer, macOS developer tools">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <link rel="canonical" href="https://aganal.the-ihor.com/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="AGANAL">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:url" content="https://aganal.the-ihor.com/">
+  <meta property="og:title" content="AGANAL — Analytics for your AI coding agents">
+  <meta property="og:description" content="See what your agents actually did. Tokens, tool calls, context pressure and retries — across every agent, in one native, private Mac app.">
+  <meta property="og:image" content="https://aganal.the-ihor.com/assets/og.png">
+  <meta property="og:image:alt" content="AGANAL — analytics for AI coding agents">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="AGANAL — Analytics for your AI coding agents">
+  <meta name="twitter:description" content="Read your AI coding sessions off disk and see what actually happened. Native macOS, private, open source.">
+  <meta name="twitter:image" content="https://aganal.the-ihor.com/assets/og.png">
+
+  <meta name="theme-color" content="#0a0b0f">
+  <link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[
+    {"@type":"Organization","@id":"https://aganal.the-ihor.com/#org","name":"AGANAL","url":"https://aganal.the-ihor.com/","founder":{"@type":"Person","name":"Ihor Herasymovych"}},
+    {"@type":"WebSite","@id":"https://aganal.the-ihor.com/#website","url":"https://aganal.the-ihor.com/","name":"AGANAL","publisher":{"@id":"https://aganal.the-ihor.com/#org"},"inLanguage":"en"},
+    {"@type":"SoftwareApplication","name":"AGANAL","applicationCategory":"DeveloperApplication","operatingSystem":"macOS 14 or later","url":"https://aganal.the-ihor.com/","downloadUrl":"https://github.com/the-ihor/aganal/releases/latest/download/AGANAL.dmg","description":"Native macOS app that analyzes AI coding-agent sessions: it reads on-disk session logs and surfaces tool usage, token usage over time, context-window pressure, and individual events across many agents.","softwareVersion":"0.1","featureList":["Normalizes sessions from many agents into one shared model","Tokens-over-time chart with range selection","Stacked tool-calls-over-time chart","Context-window usage metrics","Event inspection with raw JSONL","Custom source directories","Prompt-derived and AI-generated session titles"],"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@id":"https://aganal.the-ihor.com/#org"}},
+    {"@type":"FAQPage","mainEntity":[
+      {"@type":"Question","name":"Is AGANAL private? Does my data leave my Mac?","acceptedAnswer":{"@type":"Answer","text":"Yes. AGANAL only reads the session logs your agent tools already wrote to disk, and all analysis runs locally on your Mac. There is no account, nothing is uploaded, and there is no telemetry."}},
+      {"@type":"Question","name":"Which agents and tools does AGANAL support?","acceptedAnswer":{"@type":"Answer","text":"Claude Code, OpenAI Codex, Gemini CLI, Qwen Code, Cursor agents, opencode, and Google Antigravity. Each provider is normalized into one shared session model. You can also point AGANAL at any custom directory of session files."}},
+      {"@type":"Question","name":"What can AGANAL show me?","acceptedAnswer":{"@type":"Answer","text":"Tool usage and frequencies, token usage over time with range selection, a stacked tool-calls-over-time chart, context-window pressure per turn, and full event inspection down to the raw JSONL record."}},
+      {"@type":"Question","name":"What are the system requirements?","acceptedAnswer":{"@type":"Answer","text":"macOS 14 or later. AGANAL is a native Swift and SwiftUI app."}},
+      {"@type":"Question","name":"Does AGANAL work offline?","acceptedAnswer":{"@type":"Answer","text":"Yes. AGANAL reads local files and computes everything on-device, so it works fully offline."}},
+      {"@type":"Question","name":"Is AGANAL free and open source?","acceptedAnswer":{"@type":"Answer","text":"Yes. AGANAL is free and open source. Clone the repository and run it with a single Swift command."}}
+    ]}
+  ]}
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#0a0b0f; --panel:#11131a; --panel-2:#0d0f15; --raise:#151824;
+      --hair:rgba(255,255,255,.09); --hair-2:rgba(255,255,255,.05);
+      --ink:#eef0f6; --ink-soft:#c3c7d4; --dim:#8b90a2; --faint:#5c6172;
+      --blue:#6d7bff; --blue-deep:#4c5ced; --blue-lo:#9aa4ff; --blue-lolo:#c3c9ff;
+      --pos:#41d69c; --warn:#f4b656;
+      --maxw:1200px;
+      --disp:"Space Grotesk",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+      --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+      --ease:cubic-bezier(.22,1,.36,1);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--ink);
+      font:16px/1.6 var(--disp);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+    ::selection{background:var(--blue);color:#fff}
+    a{color:inherit;text-decoration:none}
+    h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.03em}
+    .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+    /* backdrop: graph paper + accent field */
+    .grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+      background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+      background-size:46px 46px;
+      -webkit-mask-image:radial-gradient(120% 70% at 50% 0%,#000 30%,transparent 78%);
+      mask-image:radial-gradient(120% 70% at 50% 0%,#000 30%,transparent 78%)}
+    .field{position:fixed;z-index:0;pointer-events:none;top:-24vh;left:50%;transform:translateX(-50%);
+      width:120vw;height:80vh;
+      background:radial-gradient(46% 60% at 62% 0%,color-mix(in srgb,var(--blue) 26%,transparent),transparent 70%);
+      filter:blur(30px);opacity:.7}
+
+    /* mono utility */
+    .mono{font-family:var(--mono)}
+    .k{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+    .ac{color:var(--blue)}
+    .dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--blue)}
+    .dot.live{background:var(--pos);box-shadow:0 0 0 0 color-mix(in srgb,var(--pos) 70%,transparent);animation:pulse 2.2s var(--ease) infinite}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--pos) 55%,transparent)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+    /* nav */
+    header.nav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 68%,transparent);
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color .25s}
+    header.nav.scrolled{border-bottom-color:var(--hair)}
+    .nav-inner{display:flex;align-items:center;justify-content:space-between;height:62px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:.02em}
+    .brand img{width:25px;height:25px;border-radius:7px;display:block}
+    .nav-links{display:flex;align-items:center;gap:26px}
+    .nav-links a.lnk{font-family:var(--mono);font-size:12.5px;color:var(--dim);position:relative;letter-spacing:.02em}
+    .nav-links a.lnk:hover{color:var(--ink)}
+    @media(max-width:800px){.nav-links a.lnk{display:none}}
+
+    /* buttons */
+    .btn{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--mono);font-size:13px;font-weight:500;
+      padding:11px 17px;border-radius:10px;border:1px solid var(--hair);color:var(--ink);background:rgba(255,255,255,.02);
+      transition:border-color .2s,background .2s,transform .2s;white-space:nowrap}
+    .btn:hover{border-color:var(--ink);transform:translateY(-1px)}
+    .btn.solid{background:var(--blue-deep);border-color:var(--blue-deep);color:#fff;box-shadow:0 12px 32px -14px var(--blue)}
+    .btn.solid:hover{filter:brightness(1.08);border-color:var(--blue-deep)}
+    .btn svg{width:16px;height:16px;fill:currentColor}
+
+    /* layout */
+    main{position:relative;z-index:1}
+    section{padding:88px 0}
+    @media(max-width:680px){section{padding:60px 0}}
+    .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:36px;flex-wrap:wrap}
+    .sec-head h2{font-size:clamp(28px,4.4vw,50px);line-height:1.02}
+    .sec-head .k{margin-left:auto}
+
+    /* hero */
+    .hero{padding:64px 0 20px;text-align:center}
+    .status{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;color:var(--dim);
+      border:1px solid var(--hair);border-radius:999px;padding:7px 14px;background:rgba(255,255,255,.02)}
+    .hero h1{font-size:clamp(40px,7vw,86px);line-height:1.02;letter-spacing:-.045em;margin:26px auto 0;max-width:15ch}
+    .hero .sub{color:var(--ink-soft);font-size:clamp(16px,1.9vw,20px);line-height:1.5;max-width:60ch;margin:22px auto 0}
+    .hero .sub b{color:var(--ink);font-weight:600}
+    .hero .cta{display:flex;gap:12px;justify-content:center;margin:32px 0 0;flex-wrap:wrap}
+    .hero .meta{font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:20px;letter-spacing:.02em}
+    .hero .meta b{color:var(--blue-lo);font-weight:500}
+    /* kpi band + screenshots */
+    .kpis{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:34px auto 0}
+    .kpi{border:1px solid var(--hair);border-radius:12px;background:rgba(255,255,255,.02);padding:11px 18px;min-width:112px;text-align:center}
+    .kpi .n{display:block;font-family:var(--mono);font-weight:600;font-size:clamp(21px,2.6vw,29px);letter-spacing:-.02em;color:var(--ink)}
+    .kpi .l{display:block;font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:4px;letter-spacing:.03em}
+    .hero-shot{margin-top:44px}
+    .shot{display:block;width:100%;height:auto;filter:drop-shadow(0 46px 80px rgba(0,0,0,.62))}
+    .shot.framed{border-radius:12px;border:1px solid var(--hair);filter:drop-shadow(0 30px 60px rgba(0,0,0,.5))}
+    .cap{font-family:var(--mono);font-size:11.5px;color:var(--faint);text-align:center;margin-top:16px;letter-spacing:.03em}
+    /* showcase rows */
+    .shows{display:flex;flex-direction:column;gap:70px;margin-top:8px}
+    .showrow{display:grid;grid-template-columns:1.2fr .8fr;gap:44px;align-items:center}
+    .showrow:nth-child(even) .media{order:2}
+    .showrow .kk{font-family:var(--mono);font-size:11px;color:var(--blue-lo);letter-spacing:.12em;text-transform:uppercase}
+    .showrow h3{font-size:clamp(22px,3vw,34px);margin-top:10px;letter-spacing:-.03em}
+    .showrow p{color:var(--dim);font-size:15.5px;line-height:1.6;margin-top:14px;max-width:48ch}
+    @media(max-width:820px){.showrow{grid-template-columns:1fr;gap:20px}.showrow:nth-child(even) .media{order:0}}
+
+    /* bento dashboard */
+    .board{margin-top:52px;border:1px solid var(--hair);border-radius:18px;overflow:hidden;background:var(--panel-2);
+      box-shadow:0 50px 130px -60px rgba(0,0,0,.9)}
+    .board-bar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--hair);background:rgba(255,255,255,.02)}
+    .board-bar .t{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft)}
+    .board-bar .r{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--dim);display:inline-flex;align-items:center;gap:7px}
+    .bento{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:150px;gap:12px;padding:14px;
+      grid-template-areas:"tok tok tools tools" "tok tok ctx retry" "agents agents events events"}
+    .tile{position:relative;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--hair);border-radius:13px;
+      padding:15px 16px;overflow:hidden;display:flex;flex-direction:column}
+    .tile::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent)}
+    .tile .th{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .tile .stat{font-family:var(--mono);font-weight:600;font-size:clamp(24px,3.2vw,34px);letter-spacing:-.02em;line-height:1;margin-top:auto}
+    .tile .lab{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:6px;letter-spacing:.04em}
+    .delta{font-family:var(--mono);font-size:11.5px;font-weight:500}
+    .delta.up{color:var(--pos)} .delta.warn{color:var(--warn)}
+    .viz{position:absolute;pointer-events:none}
+    .t-tok{grid-area:tok} .t-tools{grid-area:tools} .t-ctx{grid-area:ctx} .t-retry{grid-area:retry} .t-agents{grid-area:agents} .t-events{grid-area:events}
+    .spark{stroke-linecap:round;stroke-linejoin:round}
+    @media(max-width:760px){
+      .bento{grid-template-columns:1fr 1fr;grid-auto-rows:132px;grid-template-areas:"tok tok" "tools tools" "ctx retry" "agents agents" "events events"}
+    }
+    @media(max-width:460px){
+      .bento{grid-template-columns:1fr;grid-template-areas:"tok" "tools" "ctx" "retry" "agents" "events"}
+    }
+
+    /* event stream lines */
+    .evrow{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim);padding:2px 0}
+    .evrow b{color:var(--ink-soft);font-weight:500}
+    .evrow .tg{margin-left:auto;color:var(--faint)}
+
+    /* agents grid */
+    .src-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    @media(max-width:820px){.src-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:480px){.src-grid{grid-template-columns:1fr}}
+    .src{border:1px solid var(--hair);border-radius:12px;padding:16px;background:linear-gradient(180deg,var(--panel),var(--panel-2));
+      transition:border-color .2s,transform .2s}
+    .src:hover{border-color:var(--blue);transform:translateY(-2px)}
+    .src .nm{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+    .src .pth{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    /* feature cards */
+    .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    @media(max-width:860px){.cards{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:560px){.cards{grid-template-columns:1fr}}
+    .card{border:1px solid var(--hair);border-radius:15px;padding:20px;background:linear-gradient(180deg,var(--panel),var(--panel-2));
+      display:flex;flex-direction:column;min-height:250px;transition:border-color .2s,transform .2s}
+    .card:hover{border-color:var(--blue);transform:translateY(-2px)}
+    .card .cv{height:88px;margin:-4px -4px 14px;border-radius:10px;background:var(--panel-2);border:1px solid var(--hair-2);overflow:hidden}
+    .card .cv svg{display:block;width:100%;height:100%}
+    .card h3{font-size:19px;letter-spacing:-.02em}
+    .card .kk{font-family:var(--mono);font-size:11px;color:var(--blue-lo);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+    .card p{color:var(--dim);font-size:14.5px;line-height:1.55;margin:8px 0 0}
+
+    /* terminal */
+    .term{border:1px solid var(--hair);border-radius:14px;overflow:hidden;background:#0b0d12}
+    .term .bar{display:flex;align-items:center;gap:7px;padding:11px 14px;border-bottom:1px solid var(--hair);background:rgba(255,255,255,.02)}
+    .term .bar i{width:11px;height:11px;border-radius:50%}
+    .term .bar i:nth-child(1){background:#ff5f57}.term .bar i:nth-child(2){background:#febc2e}.term .bar i:nth-child(3){background:#28c840}
+    .term .bar span{margin-left:6px;font-family:var(--mono);font-size:12px;color:var(--faint)}
+    .term pre{margin:0;padding:20px;font-family:var(--mono);font-size:13px;line-height:1.85;color:var(--ink-soft);overflow-x:auto}
+    .term .p{color:var(--blue)} .term .g{color:var(--pos)} .term .d{color:var(--faint)}
+    .setup{display:grid;grid-template-columns:1.15fr .85fr;gap:26px;align-items:center}
+    @media(max-width:820px){.setup{grid-template-columns:1fr;gap:20px}}
+    .steps{display:flex;flex-direction:column;gap:16px}
+    .step{display:flex;gap:14px;align-items:flex-start}
+    .step .n{font-family:var(--mono);font-size:12px;color:var(--blue);border:1px solid var(--hair);border-radius:8px;padding:6px 9px;flex-shrink:0}
+    .step h4{margin:0;font-size:16px;letter-spacing:-.01em}
+    .step p{margin:4px 0 0;color:var(--dim);font-size:14px;line-height:1.5}
+
+    /* privacy statement */
+    .statement{border:1px solid var(--hair);border-radius:20px;padding:clamp(28px,5vw,64px);position:relative;overflow:hidden;
+      background:radial-gradient(90% 130% at 85% -20%,color-mix(in srgb,var(--blue) 30%,transparent),transparent 55%),linear-gradient(180deg,#0f1220,#0b0d13)}
+    .statement h2{font-size:clamp(30px,6vw,66px);line-height:.98;letter-spacing:-.04em;max-width:16ch}
+    .statement p{color:var(--ink-soft);max-width:56ch;margin-top:22px;font-size:clamp(15px,1.7vw,18px)}
+    .statement .chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+    .statement .chip{font-family:var(--mono);font-size:12px;color:var(--ink-soft);border:1px solid var(--hair);border-radius:999px;padding:8px 13px;background:rgba(255,255,255,.03)}
+
+    /* faq */
+    .faq{border-top:1px solid var(--hair);max-width:860px}
+    .faq details{border-bottom:1px solid var(--hair)}
+    .faq summary{list-style:none;cursor:pointer;padding:22px 4px;display:flex;justify-content:space-between;gap:16px;align-items:center;
+      font-size:clamp(16px,2vw,20px);font-weight:600;letter-spacing:-.02em}
+    .faq summary::-webkit-details-marker{display:none}
+    .faq summary::after{content:"+";color:var(--blue);font-family:var(--mono);font-weight:400;font-size:1.2em}
+    .faq details[open] summary::after{content:"\2212"}
+    .faq .a{padding:0 4px 24px;color:var(--dim);font-size:15px;line-height:1.6;max-width:70ch}
+
+    /* get */
+    .get{text-align:center}
+    .get h2{font-size:clamp(40px,9vw,120px);line-height:.9;letter-spacing:-.045em}
+    .code{display:inline-flex;align-items:center;gap:14px;margin:30px auto 0;max-width:100%;
+      background:var(--panel);border:1px solid var(--hair);border-radius:12px;padding:13px 15px}
+    .code code{font-family:var(--mono);font-size:13px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .code code .p{color:var(--blue)}
+    .code .copy{flex-shrink:0;font-family:var(--mono);font-size:11px;color:var(--dim);background:transparent;border:1px solid var(--hair);
+      border-radius:7px;padding:6px 10px;cursor:pointer;transition:color .2s,border-color .2s}
+    .code .copy:hover{color:var(--ink);border-color:var(--ink)}
+    .get .cta{display:flex;gap:12px;justify-content:center;margin-top:22px;flex-wrap:wrap}
+
+    /* footer */
+    footer{border-top:1px solid var(--hair);padding:34px 0;position:relative;z-index:1}
+    .foot{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;color:var(--dim);font-family:var(--mono);font-size:12px}
+    .foot nav{display:flex;gap:20px}
+    .foot nav a:hover{color:var(--blue)}
+
+    /* reveal */
+    .reveal{opacity:0;transform:translateY(20px);transition:opacity .7s ease var(--d,0s),transform .8s var(--ease) var(--d,0s)}
+    .reveal.in{opacity:1;transform:none}
+    a:focus-visible,.btn:focus-visible,.copy:focus-visible{outline:2.5px solid var(--blue);outline-offset:3px;border-radius:6px}
+    @media(prefers-reduced-motion:reduce){
+      *,::before,::after{animation:none!important;transition-duration:.001ms!important}
+      .reveal{opacity:1!important;transform:none!important}
+      html{scroll-behavior:auto}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="field" aria-hidden="true"></div>
+
+  <header class="nav" id="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top"><img src="/assets/logo.svg" alt="" aria-hidden="true"> AGANAL</a>
+      <nav class="nav-links">
+        <a class="lnk" href="#signal">Metrics</a>
+        <a class="lnk" href="#sources">Agents</a>
+        <a class="lnk" href="#setup">Setup</a>
+        <a class="lnk" href="#faq">FAQ</a>
+        <a class="lnk" href="https://github.com/the-ihor/aganal">GitHub</a>
+        <a class="btn solid" href="#get">Get AGANAL</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- ===== HERO ===== -->
+    <section class="hero">
+      <div class="wrap">
+        <span class="status reveal"><span class="dot live" aria-hidden="true"></span> local-only · reading 7 agents&rsquo; sessions</span>
+        <h1 class="reveal" style="--d:.05s">Your coding agents,<br>fully <span class="ac">instrumented.</span></h1>
+        <p class="sub reveal" style="--d:.12s">AGANAL reads the session logs your tools already leave on disk and turns them into metrics — <b>tokens, tool calls, context pressure, retries</b> — for every agent, on one screen.</p>
+        <div class="cta reveal" style="--d:.18s">
+          <a class="btn solid" href="https://github.com/the-ihor/aganal/releases/latest/download/AGANAL.dmg">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+            Download for Mac
+          </a>
+          <a class="btn" href="https://github.com/the-ihor/aganal">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.19-3.1-.12-.3-.52-1.47.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.5 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.4-5.26 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+            View source
+          </a>
+        </div>
+        <p class="meta reveal" style="--d:.24s">free &amp; open source · macOS 14+ · Apple Silicon &amp; Intel · <b>nothing leaves your Mac</b></p>
+
+        <!-- KPI band — real numbers from the Claude Code session shown below -->
+        <div class="kpis reveal" style="--d:.06s">
+          <div class="kpi"><span class="n" data-to="74" data-dec="0">0</span><span class="l">events</span></div>
+          <div class="kpi"><span class="n" data-to="19" data-dec="0">0</span><span class="l">tool calls</span></div>
+          <div class="kpi"><span class="n" data-to="4943" data-dec="0">0</span><span class="l">output tokens</span></div>
+          <div class="kpi"><span class="n" data-to="4" data-dec="0" data-suffix="%">0</span><span class="l">of 1M context</span></div>
+          <div class="kpi"><span class="n" data-to="7" data-dec="0">0</span><span class="l">agents</span></div>
+        </div>
+
+        <!-- Real Analysis view -->
+        <div class="hero-shot reveal" style="--d:.1s">
+          <img class="shot" src="/assets/shots/analysis.webp" width="1680" height="1080" loading="eager"
+               alt="AGANAL Analysis view for a Claude Code session: stat tiles (events, messages, tool calls, output tokens, peak context), a tool-usage ranking, a tokens-over-time chart, and a context-by-category stacked chart.">
+          <p class="cap">Analysis view · Claude Code · claude-opus-4-8</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SOURCES / AGENTS ===== -->
+    <section id="sources">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <h2>One lens for <span class="ac">every agent.</span></h2>
+          <span class="k">// sources</span>
+        </div>
+        <div class="src-grid">
+          <div class="src reveal"><div class="nm"><span class="dot" style="background:#d97757"></span>Claude Code</div><div class="pth">~/.claude/projects</div></div>
+          <div class="src reveal" style="--d:.04s"><div class="nm"><span class="dot" style="background:#e8e8e8"></span>Codex</div><div class="pth">~/.codex/sessions</div></div>
+          <div class="src reveal" style="--d:.08s"><div class="nm"><span class="dot" style="background:#2a73f5"></span>Gemini CLI</div><div class="pth">~/.gemini/tmp/**/chats</div></div>
+          <div class="src reveal" style="--d:.12s"><div class="nm"><span class="dot" style="background:#615ced"></span>Qwen Code</div><div class="pth">~/.qwen/tmp/**/chats</div></div>
+          <div class="src reveal" style="--d:.04s"><div class="nm"><span class="dot" style="background:#e8e8e8"></span>Cursor</div><div class="pth">~/.cursor/**/agent-transcripts</div></div>
+          <div class="src reveal" style="--d:.08s"><div class="nm"><span class="dot" style="background:#e8e8e8"></span>opencode</div><div class="pth">opencode.db · SQLite</div></div>
+          <div class="src reveal" style="--d:.12s"><div class="nm"><span class="dot" style="background:#0f9d8a"></span>Antigravity</div><div class="pth">~/.gemini/antigravity-cli</div></div>
+          <div class="src reveal" style="--d:.16s"><div class="nm"><span class="dot" style="background:#6d7bff"></span>Any directory</div><div class="pth">**/*.jsonl</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SIGNAL / FEATURES ===== -->
+    <section id="signal">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <h2>Every session, <span class="ac">measured.</span></h2>
+          <span class="k">// views</span>
+        </div>
+        <p class="reveal" style="--d:.06s;color:var(--ink-soft);font-size:clamp(16px,1.8vw,19px);max-width:54ch;margin:0 0 8px;line-height:1.5">Three views over the same normalized session — a dashboard, a filterable event stream, and the raw record underneath.</p>
+        <div class="shows">
+          <article class="showrow reveal">
+            <div class="media"><img class="shot" src="/assets/shots/events.webp" width="1680" height="1095" loading="lazy" alt="AGANAL Events view: a filterable stream of messages, reasoning, tool calls, results and per-turn token usage for a Claude Code session, with search, a tool filter, an errors filter and an event-range slider."></div>
+            <div class="copy">
+              <span class="kk">events</span>
+              <h3>Every event, filtered</h3>
+              <p>Scrub the run as a stream — messages, reasoning, tool calls and their results (paired by id), token usage per turn, lifecycle. Filter by type, search the text, jump to errors, or drag the event-range slider down to a single slice.</p>
+            </div>
+          </article>
+          <article class="showrow reveal">
+            <div class="media"><img class="shot" src="/assets/shots/raw-jsonl.webp" width="1680" height="1095" loading="lazy" alt="AGANAL Raw JSONL view: every line of the session as a typed table, with the exact underlying record shown and syntax-highlighted."></div>
+            <div class="copy">
+              <span class="kk">raw jsonl</span>
+              <h3>Down to the raw record</h3>
+              <p>When you want the ground truth, drop to Raw JSONL: every line as a typed row — user, assistant, attachment, tool — and the exact record behind whatever you select, syntax-highlighted.</p>
+            </div>
+          </article>
+          <article class="showrow reveal">
+            <div class="media"><img class="shot framed" src="/assets/shots/add-directory.webp" width="596" height="451" loading="lazy" alt="AGANAL Add Session Directory sheet with a Format picker listing Codex, Claude Code, Gemini CLI, Qwen Code, Cursor, opencode and Antigravity."></div>
+            <div class="copy">
+              <span class="kk">any source</span>
+              <h3>Point it at any folder</h3>
+              <p>A second Claude install, a synced cloud Codex instance, an archive — point AGANAL at the folder, choose the format (Claude Code, Codex, Gemini CLI, Qwen Code, Cursor, opencode or Antigravity), and it reads straight into the same model.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SETUP ===== -->
+    <section id="setup">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <h2>Runs in <span class="ac">one command.</span></h2>
+          <span class="k">// setup</span>
+        </div>
+        <div class="setup">
+          <div class="term reveal">
+            <div class="bar" aria-hidden="true"><i></i><i></i><i></i><span>zsh — aganal</span></div>
+<pre aria-label="Terminal: clone and run AGANAL"><span class="d">$</span> git clone https://github.com/the-ihor/aganal
+<span class="d">$</span> cd aganal && <span class="p">swift run</span>
+<span class="d">▸</span> discovering sessions… <span class="g">7 sources · 214 sessions</span>
+<span class="d">▸</span> building normalized model…
+<span class="d">▸</span> <span class="g">ready.</span> opening AGANAL ✦</pre>
+          </div>
+          <div class="steps reveal" style="--d:.08s">
+            <div class="step"><span class="n">01</span><div><h4>Clone &amp; run</h4><p>No installer, no account. <span class="mono" style="color:var(--ink-soft)">swift run</span> builds the native app.</p></div></div>
+            <div class="step"><span class="n">02</span><div><h4>Pick a source</h4><p>Your agents are auto-discovered — or drop in any directory of logs.</p></div></div>
+            <div class="step"><span class="n">03</span><div><h4>Read the run</h4><p>Charts, tool calls, context and every event — from files already on disk.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PRIVACY ===== -->
+    <section id="privacy">
+      <div class="wrap">
+        <div class="statement reveal">
+          <span class="k">// privacy</span>
+          <h2 style="margin-top:16px">Everything runs on <span class="ac">your machine.</span></h2>
+          <p>AGANAL reads the logs your tools already wrote to disk and computes every metric locally. Nothing is uploaded, there&rsquo;s no account, and there&rsquo;s no telemetry — it works fully offline.</p>
+          <div class="chips">
+            <span class="chip">no account</span>
+            <span class="chip">no upload</span>
+            <span class="chip">no telemetry</span>
+            <span class="chip">offline-capable</span>
+            <span class="chip">reads local files only</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section id="faq">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <h2>Questions, <span class="ac">answered.</span></h2>
+          <span class="k">// faq</span>
+        </div>
+        <div class="faq reveal">
+          <details open>
+            <summary>Is AGANAL private? Does my data leave my Mac?</summary>
+            <div class="a">Yes. AGANAL only reads the session logs your agent tools already wrote to disk, and all analysis runs locally on your Mac. There&rsquo;s no account, nothing is uploaded, and there&rsquo;s no telemetry.</div>
+          </details>
+          <details>
+            <summary>Which agents and tools does it support?</summary>
+            <div class="a">Claude Code, OpenAI Codex, Gemini CLI, Qwen Code, Cursor agents, opencode, and Google Antigravity — each normalized into one shared session model. You can also point AGANAL at any custom directory of session files.</div>
+          </details>
+          <details>
+            <summary>What can AGANAL show me?</summary>
+            <div class="a">Three views over each session: an <b>Analysis</b> dashboard (stat tiles, a tool-usage ranking, tokens over time — cumulative or per turn — and a context-by-category stacked chart), an <b>Events</b> stream you can filter and search, and a <b>Raw JSONL</b> view down to the underlying record.</div>
+          </details>
+          <details>
+            <summary>What are the system requirements?</summary>
+            <div class="a">macOS 14 or later. AGANAL is a native Swift &amp; SwiftUI app.</div>
+          </details>
+          <details>
+            <summary>Is it free and open source?</summary>
+            <div class="a">Yes. AGANAL is free and open source. Clone the repository and run it with a single Swift command.</div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== GET ===== -->
+    <section id="get" class="get">
+      <div class="wrap">
+        <span class="k reveal">// free &amp; open source</span>
+        <h2 class="reveal" style="--d:.05s;margin-top:16px">Get <span class="ac">AGANAL.</span></h2>
+        <div class="cta reveal" style="--d:.1s;margin-top:30px">
+          <a class="btn solid" href="https://github.com/the-ihor/aganal/releases/latest/download/AGANAL.dmg">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+            Download for Mac
+          </a>
+          <a class="btn" href="https://github.com/the-ihor/aganal">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.19-3.1-.12-.3-.52-1.47.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.5 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.4-5.26 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+            View source
+          </a>
+        </div>
+        <p class="cap reveal" style="--d:.16s">macOS 14+ · Apple Silicon &amp; Intel · notarized · or build from source:</p>
+        <div class="code reveal" style="--d:.2s">
+          <code><span class="p">$</span> git clone https://github.com/the-ihor/aganal &amp;&amp; cd aganal &amp;&amp; <span class="p">swift run</span></code>
+          <button class="copy" type="button" data-copy="git clone https://github.com/the-ihor/aganal && cd aganal && swift run">copy</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <span>© 2026 Ihor Herasymovych · independent project · names of third-party tools belong to their owners</span>
+      <nav>
+        <a href="https://github.com/the-ihor/aganal">github</a>
+        <a href="https://github.com/the-ihor/aganal#readme">docs</a>
+        <a href="mailto:mgorunuch.igor@gmail.com">contact</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+  (function(){
+    var nav = document.getElementById('nav');
+    var onScroll = function(){ nav.classList.toggle('scrolled', window.scrollY > 8); };
+    onScroll(); window.addEventListener('scroll', onScroll, { passive:true });
+
+    // prime sparkline draw
+    document.querySelectorAll('.spark').forEach(function(p){
+      try { var L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L; } catch(e){}
+    });
+
+    function countUp(el){
+      if (el.dataset.done) return; el.dataset.done = '1';
+      var to = parseFloat(el.dataset.to), dec = parseInt(el.dataset.dec||'0'),
+          suf = el.dataset.suffix||'', dur = 1100, t0 = null;
+      function fmt(v){ return v.toFixed(dec).replace(/\B(?=(\d{3})+(?!\d))/g,',') + suf; }
+      function step(ts){ if(!t0) t0 = ts; var p = Math.min((ts-t0)/dur,1); var e = 1-Math.pow(1-p,3);
+        el.textContent = fmt(to*e); if(p<1) requestAnimationFrame(step); else el.textContent = fmt(to); }
+      requestAnimationFrame(step);
+    }
+
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if (!e.isIntersecting) return;
+          var el = e.target;
+          el.classList.add('in');
+          el.querySelectorAll('[data-to]').forEach(countUp);
+          if (el.matches('[data-to]')) countUp(el);
+          el.querySelectorAll('.spark').forEach(function(p){ p.style.transition='stroke-dashoffset 1.5s var(--ease)'; p.style.strokeDashoffset='0'; });
+          io.unobserve(el);
+        });
+      }, { threshold:0.2, rootMargin:'0px 0px -5% 0px' });
+      document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+    } else {
+      document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); });
+      document.querySelectorAll('[data-to]').forEach(function(el){ el.textContent = (el.dataset.dec>0?parseFloat(el.dataset.to).toFixed(el.dataset.dec):el.dataset.to)+(el.dataset.suffix||''); });
+      document.querySelectorAll('.spark').forEach(function(p){ p.style.strokeDashoffset='0'; });
+    }
+
+    document.querySelectorAll('.copy').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var text = btn.getAttribute('data-copy')||'';
+        var done = function(){ var o = btn.textContent; btn.textContent='copied'; setTimeout(function(){ btn.textContent=o; },1400); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(done);
+        else done();
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

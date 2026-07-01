@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  AGANAL is distributed outside the App Store with the hardened runtime and is
+  NOT sandboxed, so it can read the session logs your agent tools already wrote
+  to disk (e.g. ~/.claude, ~/.codex, ~/.gemini) without special entitlements.
+  It needs no device access. This file is intentionally empty.
+-->
+<dict>
+</dict>
+</plist>

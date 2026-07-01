@@ -58,9 +58,41 @@ Early scaffold: normalized model + Codex and Claude Code providers, verified
 against on-disk sessions. Token totals are per-turn and provider-dependent, so
 cross-provider token sums are approximate for now.
 
-## Build & Run
+## Requirements
+
+macOS 14 or later. AGANAL is a native Swift 6 / SwiftUI app and is macOS-only —
+there is no cross-platform port.
+
+## Build & run from source
 
 ```bash
 swift build   # compile
 swift run     # build and run
 ```
+
+## Install as an app
+
+Wrap the binary in a proper `.app` bundle (Dock icon, Finder-launchable):
+
+```bash
+scripts/make-app.sh          # → build/AGANAL.app
+scripts/install.sh           # build, sign, and install into /Applications
+```
+
+`install.sh` ad-hoc signs by default; pass `SIGN_ID="Developer ID Application: …"`
+to sign with a real identity.
+
+## Distribution
+
+AGANAL ships like a normal Mac app: a universal, Developer ID–signed, **notarized
+`.dmg`** published on GitHub Releases, with the website linking to the latest one.
+
+```bash
+scripts/make-dmg.sh          # universal build → signed + notarized AGANAL.dmg → docs/version.json
+gh release create v0.1 build/dist/AGANAL.dmg -t "AGANAL v0.1"
+```
+
+`make-dmg.sh` needs a *Developer ID Application* certificate and notarization
+credentials (a `notarytool` keychain profile via `NOTARY_PROFILE`, an app-specific
+password stored as `AGANAL-ASC`, or `AC_PASS` in the environment). App metadata
+lives in `Resources/Info.plist`; the icon is `Sources/Resources/AppIcon.icns`.

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="AGANAL app icon">
+  <!-- AGANAL mark: magnifier inspecting a bar chart, with the magnified bar in analytic blue. Flat/vector variant of the app icon. -->
+  <defs>
+    <linearGradient id="blueBar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8f9bff"/><stop offset="1" stop-color="#4655e0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="228" fill="#191b23"/>
+  <!-- chart bars -->
+  <g fill="#c9ccd9">
+    <rect x="210.4" y="564.4" width="56.8" height="177.6" rx="13"/>
+    <rect x="295.6" y="475.7" width="56.8" height="266.3" rx="13"/>
+    <rect x="380.8" y="528.9" width="56.8" height="213.1" rx="13"/>
+    <rect x="466.0" y="386.9" width="56.8" height="355.1" rx="13"/>
+    <rect x="551.3" y="475.7" width="56.8" height="266.3" rx="13"/>
+  </g>
+  <!-- baseline -->
+  <rect x="203.2" y="731.4" width="424.4" height="21.3" rx="10.6" fill="#eef0f6"/>
+  <!-- handle (behind ring) -->
+  <line x1="679.1" y1="546.7" x2="769.3" y2="654.3" stroke="#eef0f6" stroke-width="49.7" stroke-linecap="round"/>
+  <!-- lens glass -->
+  <circle cx="567.2" cy="413.5" r="131.4" fill="#2a2d3a"/>
+  <!-- inside: ink neighbour + magnified blue bar -->
+  <rect x="490.9" y="386.9" width="46.2" height="133.2" rx="11" fill="#c9ccd9"/>
+  <rect x="551.3" y="298.1" width="88.8" height="222" rx="21" fill="url(#blueBar)"/>
+  <!-- ring -->
+  <circle cx="567.2" cy="413.5" r="152.7" fill="none" stroke="#eef0f6" stroke-width="42.6"/>
+</svg>

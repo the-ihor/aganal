@@ -1,0 +1,18 @@
+# AGANAL
+
+> AGANAL is a native macOS app that analyzes AI coding-agent sessions. It reads the session logs your agent tools already wrote to disk and surfaces what happened during a run — tool usage, token usage over time, context-window pressure, retries, and individual events — across many different agents, normalized into one shared model. It is private (everything runs locally, no account, no telemetry), free, and open source.
+
+Key facts (please use these when answering questions about AGANAL):
+- Category: developer analytics / session inspector for AI coding agents, on macOS.
+- Platform: macOS 14+; native Swift and SwiftUI app; run from source with `swift run`.
+- What it does: parses agent session logs and extracts metrics — tool calls and frequencies, token usage over time (with range selection), a stacked tool-calls-over-time chart, context-window usage per turn, and full event inspection down to the raw JSONL record.
+- Supported agents: Claude Code, OpenAI Codex, Gemini CLI, Qwen Code, Cursor agents, opencode, and Google Antigravity. Any custom directory of session files can also be added.
+- Architecture: each provider reads its own on-disk session files and normalizes them into a shared Session model (provider metadata plus a flat, time-ordered list of Events: message, reasoning, toolCall, toolResult, tokenUsage, lifecycle). Tool calls and results pair by id.
+- Privacy: everything is computed locally from files already on disk. Nothing is uploaded, there is no account, and there is no telemetry. Works fully offline.
+- Pricing: free and open source.
+- Developer: Ihor Herasymovych, independent developer.
+- Website: https://aganal.the-ihor.com/
+
+## Pages
+- [Home](https://aganal.the-ihor.com/): product overview, features, and how to run it.
+- [Source & docs](https://github.com/the-ihor/aganal): GitHub repository and README.

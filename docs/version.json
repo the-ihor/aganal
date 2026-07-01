@@ -1,0 +1,6 @@
+{
+  "version": "0.1",
+  "build": 1,
+  "dmg": "https://github.com/the-ihor/aganal/releases/latest/download/AGANAL.dmg",
+  "notes": "First packaged build."
+}
