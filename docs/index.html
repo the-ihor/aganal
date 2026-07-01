@@ -346,7 +346,7 @@
           <h2>Every session, <span class="ac">measured.</span></h2>
           <span class="k">// views</span>
         </div>
-        <p class="reveal" style="--d:.06s;color:var(--ink-soft);font-size:clamp(16px,1.8vw,19px);max-width:54ch;margin:0 0 8px;line-height:1.5">Three views over the same normalized session — a dashboard, a filterable event stream, and the raw record underneath.</p>
+        <p class="reveal" style="--d:.06s;color:var(--ink-soft);font-size:clamp(16px,1.8vw,19px);max-width:56ch;margin:0 0 8px;line-height:1.5">The whole run as a dashboard, a filterable event stream, and the raw record — plus a one-click prompt (and a CLI) to hand it to an agent.</p>
         <div class="shows">
           <article class="showrow reveal">
             <div class="media"><img class="shot" src="/assets/shots/events.webp" width="1680" height="1095" loading="lazy" alt="AGANAL Events view: a filterable stream of messages, reasoning, tool calls, results and per-turn token usage for a Claude Code session, with search, a tool filter, an errors filter and an event-range slider."></div>
@@ -370,6 +370,14 @@
               <span class="kk">any source</span>
               <h3>Point it at any folder</h3>
               <p>A second Claude install, a synced cloud Codex instance, an archive — point AGANAL at the folder, choose the format (Claude Code, Codex, Gemini CLI, Qwen Code, Cursor, opencode or Antigravity), and it reads straight into the same model.</p>
+            </div>
+          </article>
+          <article class="showrow reveal">
+            <div class="media"><img class="shot" src="/assets/shots/agent.webp" width="1680" height="1095" loading="lazy" alt="AGANAL 'Analyse with Agent' tab: a ready-to-paste prompt for a session with a kind menu (Analyze, Summarize, Find errors, Cost review, Critique, Continue) and a Copy prompt button."></div>
+            <div class="txt">
+              <span class="kk">hand-off</span>
+              <h3>Hand it to an agent</h3>
+              <p>Turn any session into a ready-to-paste prompt — pick a kind (Analyze, Find errors, Cost review, Critique, Continue) and it fills in the session plus the <span class="mono ac">aganal</span> commands. Or drive the CLI yourself — <span class="mono ac">aganal analytics &lt;path&gt;</span>, <span class="mono ac">events</span>, <span class="mono ac">search</span> — JSON an agent can load and reason over.</p>
             </div>
           </article>
         </div>
