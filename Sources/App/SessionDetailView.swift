@@ -179,6 +179,9 @@ struct SessionDetailContent: View {
             if !summary.contextBreakdown.isEmpty {
                 contextChart
             }
+            if !summary.toolBreakdown.isEmpty {
+                toolChart
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -263,6 +266,33 @@ struct SessionDetailContent: View {
             .chartXDomain(chartDomain)
             .frame(height: 220)
             Text("Estimated tokens (≈ characters ÷ 4), accumulated by what produced them.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var toolChart: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Tool calls over time").font(.headline)
+            Chart {
+                ForEach(pauseIndices, id: \.self) { index in
+                    RuleMark(x: .value("Event", index))
+                        .lineStyle(StrokeStyle(lineWidth: 6))
+                        .foregroundStyle(.gray.opacity(0.18))
+                }
+                ForEach(summary.toolBreakdown) { point in
+                    AreaMark(
+                        x: .value("Event", point.eventIndex),
+                        y: .value("Calls", point.count)
+                    )
+                    .foregroundStyle(by: .value("Tool", point.tool))
+                    .interpolationMethod(.monotone)
+                }
+            }
+            .chartForegroundStyleScale(domain: summary.tools.map(\.name))
+            .chartXDomain(chartDomain)
+            .frame(height: 220)
+            Text("Cumulative tool calls, stacked by tool.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

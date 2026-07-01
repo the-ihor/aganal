@@ -16,6 +16,17 @@ struct TokenPoint: Identifiable, Sendable {
     let context: Int           // total/context tokens reported at this point
 }
 
+/// One stacked-area data point for the tools-over-time chart: a tool's
+/// *cumulative* call count at a moment in the session, keyed by event index.
+/// Every tool is snapshot at each tool-call event so the stacked area is
+/// defined at every x.
+struct ToolPoint: Identifiable, Sendable {
+    let id: Int
+    let eventIndex: Int
+    let tool: String
+    let count: Int
+}
+
 /// Aggregate, provider-agnostic metrics over a normalized `Session` — the
 /// per-session view AGANAL presents. Headlined by tool usage.
 struct SessionSummary: Sendable {
@@ -30,6 +41,7 @@ struct SessionSummary: Sendable {
     let tools: [ToolStat]          // sorted by count, descending
     let tokenSeries: [TokenPoint]      // time-ordered, points with timestamps only
     let contextBreakdown: [ContextPoint]  // cumulative estimated tokens by category
+    let toolBreakdown: [ToolPoint]     // cumulative call count per tool, by event index
 
     /// Aggregate metrics over `session`. When `range` is given, only events whose
     /// index falls in it are counted, so the whole page can scope to a selection.
@@ -103,11 +115,35 @@ struct SessionSummary: Sendable {
         self.toolFailures = failures
         self.outputTokens = outputTokens
         self.peakContextTokens = peak
-        self.tools = counts
+        let sortedTools = counts
             .map { ToolStat(name: $0.key, count: $0.value) }
             .sorted { $0.count > $1.count }
+        self.tools = sortedTools
         self.tokenSeries = series
         self.contextBreakdown = breakdown
+
+        // Second pass, now that the full set of tools in range is known: snapshot
+        // every tool's running call count at each tool-call event so the stacked
+        // area is defined at every x. Ordered by descending total (matches the
+        // Tool usage list and keeps color assignment stable).
+        var toolBreakdown: [ToolPoint] = []
+        if !sortedTools.isEmpty {
+            let toolNames = sortedTools.map(\.name)
+            var runningByTool: [String: Int] = [:]
+            for (eventIndex, event) in session.events.enumerated() {
+                if let range, !range.contains(eventIndex) { continue }
+                guard case .toolCall(let call) = event.payload else { continue }
+                runningByTool[call.name, default: 0] += 1
+                for name in toolNames {
+                    toolBreakdown.append(ToolPoint(
+                        id: toolBreakdown.count,
+                        eventIndex: eventIndex,
+                        tool: name,
+                        count: runningByTool[name, default: 0]))
+                }
+            }
+        }
+        self.toolBreakdown = toolBreakdown
     }
 
     /// Rough token estimate for a piece of text (≈ 4 characters per token).
