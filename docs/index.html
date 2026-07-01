@@ -350,7 +350,7 @@
         <div class="shows">
           <article class="showrow reveal">
             <div class="media"><img class="shot" src="/assets/shots/events.webp" width="1680" height="1095" loading="lazy" alt="AGANAL Events view: a filterable stream of messages, reasoning, tool calls, results and per-turn token usage for a Claude Code session, with search, a tool filter, an errors filter and an event-range slider."></div>
-            <div class="copy">
+            <div class="txt">
               <span class="kk">events</span>
               <h3>Every event, filtered</h3>
               <p>Scrub the run as a stream — messages, reasoning, tool calls and their results (paired by id), token usage per turn, lifecycle. Filter by type, search the text, jump to errors, or drag the event-range slider down to a single slice.</p>
@@ -358,7 +358,7 @@
           </article>
           <article class="showrow reveal">
             <div class="media"><img class="shot" src="/assets/shots/raw-jsonl.webp" width="1680" height="1095" loading="lazy" alt="AGANAL Raw JSONL view: every line of the session as a typed table, with the exact underlying record shown and syntax-highlighted."></div>
-            <div class="copy">
+            <div class="txt">
               <span class="kk">raw jsonl</span>
               <h3>Down to the raw record</h3>
               <p>When you want the ground truth, drop to Raw JSONL: every line as a typed row — user, assistant, attachment, tool — and the exact record behind whatever you select, syntax-highlighted.</p>
@@ -366,7 +366,7 @@
           </article>
           <article class="showrow reveal">
             <div class="media"><img class="shot framed" src="/assets/shots/add-directory.webp" width="596" height="451" loading="lazy" alt="AGANAL Add Session Directory sheet with a Format picker listing Codex, Claude Code, Gemini CLI, Qwen Code, Cursor, opencode and Antigravity."></div>
-            <div class="copy">
+            <div class="txt">
               <span class="kk">any source</span>
               <h3>Point it at any folder</h3>
               <p>A second Claude install, a synced cloud Codex instance, an archive — point AGANAL at the folder, choose the format (Claude Code, Codex, Gemini CLI, Qwen Code, Cursor, opencode or Antigravity), and it reads straight into the same model.</p>
@@ -522,7 +522,7 @@
       document.querySelectorAll('.spark').forEach(function(p){ p.style.strokeDashoffset='0'; });
     }
 
-    document.querySelectorAll('.copy').forEach(function(btn){
+    document.querySelectorAll('button.copy[data-copy]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var text = btn.getAttribute('data-copy')||'';
         var done = function(){ var o = btn.textContent; btn.textContent='copied'; setTimeout(function(){ btn.textContent=o; },1400); };
