@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import AppKit
 
 /// Right column: the parsed session's metadata, headline stats, and tool-usage
 /// breakdown.
@@ -24,7 +25,7 @@ struct SessionDetailView: View {
         Group {
             if let ref = model.selectedSession {
                 VStack(spacing: 0) {
-                    if mode != .raw, let session = model.loadedSession,
+                    if (mode == .analysis || mode == .events), let session = model.loadedSession,
                        session.events.count > 1 {
                         EventRangeControl(
                             eventCount: session.events.count,
@@ -38,6 +39,7 @@ struct SessionDetailView: View {
                     }
                     Picker("Mode", selection: $mode) {
                         Text("Analysis").tag(DetailMode.analysis)
+                        Text("Agent").tag(DetailMode.agent)
                         Text("Events").tag(DetailMode.events)
                         if rawAvailable {
                             Text("Raw JSONL").tag(DetailMode.raw)
@@ -50,6 +52,7 @@ struct SessionDetailView: View {
                     Divider()
                     switch mode {
                     case .analysis: analysis
+                    case .agent: agent
                     case .events: events
                     case .raw: if rawAvailable { RawSessionView(ref: ref) } else { analysis }
                     }
@@ -76,6 +79,7 @@ struct SessionDetailView: View {
     private var navigationTitle: String {
         switch mode {
         case .analysis: return "Analysis"
+        case .agent: return "Analyse with Agent"
         case .events: return "Events"
         case .raw: return "Raw JSONL"
         }
@@ -108,6 +112,17 @@ struct SessionDetailView: View {
             ContentUnavailableLabel(error, systemImage: "exclamationmark.triangle")
         } else if let session = model.loadedSession {
             EventsView(session: session, appliedRange: appliedRange, filter: $filter)
+        } else {
+            Color.clear
+        }
+    }
+
+    @ViewBuilder private var agent: some View {
+        if model.isParsing {
+            ProgressView("Parsing…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let session = model.loadedSession, let ref = model.selectedSession {
+            AgentPromptView(session: session, path: ref.path.path)
         } else {
             Color.clear
         }
@@ -605,5 +620,125 @@ private struct ToolBar: View {
             }
             .frame(height: 5)
         }
+    }
+}
+
+/// The kinds of ready-to-paste prompt the Agent tab can produce.
+enum AgentPromptKind: String, CaseIterable, Identifiable {
+    case analyze = "Analyze"
+    case summarize = "Summarize"
+    case findErrors = "Find errors"
+    case cost = "Cost review"
+    case critique = "Critique"
+    case handoff = "Continue"
+
+    var id: String { rawValue }
+
+    /// The kind-specific task, appended to the shared preamble.
+    fileprivate var task: String {
+        switch self {
+        case .analyze:
+            return """
+            Then write a short analysis:
+              • What was the agent asked to do, and did it finish?
+              • What did it actually do — dominant tools, notable steps, errors or retries?
+              • Token & context cost — output tokens, and peak context vs the window.
+              • Anything notable or worth improving.
+            """
+        case .summarize:
+            return "Then write a tight summary (5–8 bullets): the goal, the key steps the agent " +
+                   "took, the outcome, and anything surprising. No fluff."
+        case .findErrors:
+            return "Then hunt for what went wrong. Start with `events … --type toolResult --limit 200` " +
+                   "and find results with \"isError\": true. For each, quote the failing command/args and " +
+                   "the error, explain the likely cause and the fix, and note any repeated retries."
+        case .cost:
+            return "Then focus on token & context cost. From `analytics`, report output tokens and peak " +
+                   "context vs the window; use the tokens-over-time series to find the turns that drove the " +
+                   "spend, and suggest concrete ways to cut it (leaner tool output, tighter context, fewer " +
+                   "redundant reads)."
+        case .critique:
+            return "Then critique the approach. Where did the agent waste steps, re-read files, or go down " +
+                   "dead ends? What would a senior engineer have done differently? Be specific and cite events."
+        case .handoff:
+            return "Then produce a handoff brief so another agent can continue: the original goal, what's " +
+                   "already done, what's left, the repo/cwd and branch, and the exact next steps."
+        }
+    }
+
+    /// The full prompt for a session, with the CLI paths filled in.
+    static func prompt(_ kind: AgentPromptKind, session: Session, path: String) -> String {
+        let bin = Bundle.main.executableURL?.path ?? "aganal"
+        return """
+        You are analyzing one AI coding-agent session with the AGANAL CLI, which reads the \
+        session log and reports metrics. Use it to load the data, then follow the task below.
+
+        Session
+          provider: \(session.provider.rawValue)
+          title:    \(session.displayTitle)
+          file:     \(path)
+
+        Load the data (each command prints JSON):
+          "\(bin)" analytics "\(path)"
+              summary counts, tool usage, tokens over time, context by category
+          "\(bin)" events "\(path)" --type toolResult --limit 100
+              tool results — look for "isError": true
+          "\(bin)" events "\(path)" --search "<keyword>"
+              find specific moments (replace <keyword>)
+          "\(bin)" --help
+              every command and its options
+        You can also read the raw log directly at the file path above.
+
+        \(kind.task)
+        """
+    }
+}
+
+/// The "Analyse with Agent" tab: pick a prompt kind, then copy the ready-to-paste
+/// prompt (with this session's path and provider filled in).
+private struct AgentPromptView: View {
+    let session: Session
+    let path: String
+    @State private var kind: AgentPromptKind = .analyze
+    @State private var copied = false
+
+    private var prompt: String { AgentPromptKind.prompt(kind, session: session, path: path) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Label("Prompt for an agent", systemImage: "sparkles")
+                    .font(.headline)
+                Spacer(minLength: 8)
+                Picker("Kind", selection: $kind) {
+                    ForEach(AgentPromptKind.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .fixedSize()
+                Button(action: copy) {
+                    Label(copied ? "Copied" : "Copy prompt",
+                          systemImage: copied ? "checkmark" : "doc.on.doc")
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(16)
+            Divider()
+            ScrollView {
+                Text(prompt)
+                    .font(.system(.callout, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+            }
+        }
+        .onChange(of: kind) { copied = false }
+    }
+
+    private func copy() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(prompt, forType: .string)
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { copied = false }
     }
 }
