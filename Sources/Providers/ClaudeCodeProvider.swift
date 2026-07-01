@@ -61,6 +61,11 @@ struct ClaudeCodeProvider: Provider {
             provider: kind, id: ref.sessionID, cwd: nil, gitBranch: nil,
             model: nil, cliVersion: nil, startedAt: nil, events: [])
 
+        // Claude Code writes one line per content block, all repeating the same
+        // message `usage`; track which message IDs we've already counted so the
+        // token total isn't multiplied by the block count.
+        var countedUsageIDs = Set<String>()
+
         try JSONL.forEachLine(in: ref.path) { line in
             let ts = Timestamps.parse(line["timestamp"]?.string)
             session.cwd = session.cwd ?? line["cwd"]?.string
@@ -73,7 +78,8 @@ struct ClaudeCodeProvider: Provider {
             case "user":
                 Self.appendUser(line["message"], ts: ts, into: &session)
             case "assistant":
-                Self.appendAssistant(line["message"], ts: ts, into: &session)
+                Self.appendAssistant(line["message"], ts: ts,
+                                     countedUsageIDs: &countedUsageIDs, into: &session)
             case "ai-title":
                 if let title = line["aiTitle"]?.string, !title.isEmpty {
                     session.aiTitle = title  // last (newest) wins
@@ -111,13 +117,21 @@ struct ClaudeCodeProvider: Provider {
         }
     }
 
-    private static func appendAssistant(_ message: JSONValue?, ts: Date?, into session: inout Session) {
+    private static func appendAssistant(_ message: JSONValue?, ts: Date?,
+                                        countedUsageIDs: inout Set<String>,
+                                        into session: inout Session) {
         guard let message else { return }
         if let model = message["model"]?.string {
             session.model = ModelInfo(provider: "anthropic", name: model)
         }
+        // Emit a message's usage only once. Every JSONL line of one assistant
+        // message repeats the same `usage`, so summing per line over-counts
+        // output tokens by the number of content blocks (~3×).
         if let usage = parseUsage(message["usage"]) {
-            session.events.append(Event(timestamp: ts, payload: .tokenUsage(usage)))
+            let id = message["id"]?.string
+            if id == nil || countedUsageIDs.insert(id!).inserted {
+                session.events.append(Event(timestamp: ts, payload: .tokenUsage(usage)))
+            }
         }
         for block in message["content"]?.array ?? [] {
             switch block["type"]?.string {
