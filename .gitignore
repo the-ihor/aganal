@@ -8,6 +8,9 @@ build/
 .env
 .env.local
 
+# Cloudflare Pages
+.wrangler/
+
 # Xcode
 *.xcodeproj
 *.xcworkspace

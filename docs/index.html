@@ -128,6 +128,17 @@
     .hero .cta{display:flex;gap:12px;justify-content:center;margin:32px 0 0;flex-wrap:wrap}
     .hero .meta{font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:20px;letter-spacing:.02em}
     .hero .meta b{color:var(--blue-lo);font-weight:500}
+    /* product hunt card */
+    .ph-card{display:inline-flex;align-items:center;gap:14px;margin:24px auto 0;padding:11px 16px;max-width:430px;
+      background:var(--panel);border:1px solid var(--hair);border-radius:14px;text-align:left;
+      transition:border-color .2s var(--ease),transform .2s var(--ease)}
+    .ph-card:hover{border-color:var(--blue);transform:translateY(-1px)}
+    .ph-card img{width:46px;height:46px;border-radius:11px;flex-shrink:0}
+    .ph-txt{display:flex;flex-direction:column;min-width:0}
+    .ph-kicker{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--blue-lo)}
+    .ph-name{font-size:15px;font-weight:700;color:var(--ink);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ph-sub{font-size:12.5px;color:var(--dim);margin-top:2px}
+    .ph-arrow{margin-left:auto;color:var(--blue);font-weight:700;font-size:18px;flex-shrink:0}
     /* kpi band + screenshots */
     .kpis{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:34px auto 0}
     .kpi{border:1px solid var(--hair);border-radius:12px;background:rgba(255,255,255,.02);padding:11px 18px;min-width:112px;text-align:center}
@@ -309,6 +320,17 @@
           </a>
         </div>
         <p class="meta reveal" style="--d:.24s">free &amp; open source · macOS 14+ · Apple Silicon &amp; Intel · <b>nothing leaves your Mac</b></p>
+
+        <!-- Product Hunt -->
+        <a class="ph-card reveal" style="--d:.28s" href="https://www.producthunt.com/products/aganal" target="_blank" rel="noopener">
+          <img src="/assets/icon-1024.png" width="46" height="46" alt="AGANAL on Product Hunt" loading="lazy">
+          <span class="ph-txt">
+            <span class="ph-kicker">Live on Product Hunt</span>
+            <span class="ph-name">AGANAL — agentic sessions analysis</span>
+            <span class="ph-sub">Come say hi &amp; leave feedback</span>
+          </span>
+          <span class="ph-arrow" aria-hidden="true">→</span>
+        </a>
 
         <!-- KPI band — real numbers from the Claude Code session shown below -->
         <div class="kpis reveal" style="--d:.06s">
