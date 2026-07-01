@@ -1,9 +1,8 @@
 import Foundation
 
-/// A command-line front end over the same analytics the MCP server exposes, so
-/// an agent can shell out to `aganal <command>` (discoverable via `--help`)
-/// instead of running an MCP server. Results are JSON on stdout; errors and
-/// help go to stderr / stdout as text.
+/// A self-documenting command-line front end over AGANAL's analytics, so an
+/// agent can shell out to `aganal <command>` (discoverable via `--help`).
+/// Results are JSON on stdout; errors and help go to stderr / stdout as text.
 enum CLI {
     static let commands: Set<String> = ["sources", "sessions", "search", "analytics", "events", "overview"]
 
@@ -20,12 +19,12 @@ enum CLI {
         do {
             let result: Any
             switch command {
-            case "sources":   result = try MCPTools.call("list_sources", [:])
-            case "sessions":  result = try MCPTools.call("list_sessions", sessionsArgs(rest))
-            case "search":    result = try MCPTools.call("search_sessions", searchArgs(rest))
-            case "analytics": result = try MCPTools.call("session_analytics", try analyticsArgs(rest))
-            case "events":    result = try MCPTools.call("session_events", try eventsArgs(rest))
-            case "overview":  result = try MCPTools.call("overview", overviewArgs(rest))
+            case "sources":   result = try AnalyticsTools.call("list_sources", [:])
+            case "sessions":  result = try AnalyticsTools.call("list_sessions", sessionsArgs(rest))
+            case "search":    result = try AnalyticsTools.call("search_sessions", searchArgs(rest))
+            case "analytics": result = try AnalyticsTools.call("session_analytics", try analyticsArgs(rest))
+            case "events":    result = try AnalyticsTools.call("session_events", try eventsArgs(rest))
+            case "overview":  result = try AnalyticsTools.call("overview", overviewArgs(rest))
             default:
                 err("unknown command '\(command)'")
                 printTopHelp(toStderr: true)
@@ -39,7 +38,7 @@ enum CLI {
         }
     }
 
-    // MARK: - Argument mapping (to the MCPTools param shape)
+    // MARK: - Argument mapping (to the AnalyticsTools param shape)
 
     private static func sessionsArgs(_ args: [String]) -> [String: Any] {
         let (_, o) = parse(args)
@@ -174,7 +173,6 @@ enum CLI {
           analytics <path> [options]   Full analytics for one session
           events <path> [options]      Normalized events of a session
           overview [options]           Aggregate stats across all sources
-          mcp                          Run as an MCP server over stdio
 
         Results are JSON on stdout. Run 'aganal <command> --help' for options.
 

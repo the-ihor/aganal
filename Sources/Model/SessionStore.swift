@@ -1,7 +1,7 @@
 import Foundation
 
 /// Foundation-only access to the configured sources and their sessions, shared
-/// by the SwiftUI app and the `AGANAL mcp` server. Built-in sources point at
+/// by the SwiftUI app and the CLI. Built-in sources point at
 /// each provider's default location; custom sources are read from the same
 /// `sources.json` the app persists.
 enum SessionStore {

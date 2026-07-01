@@ -1,96 +1,9 @@
 import Foundation
 
-/// The AGANAL MCP tools. Each returns a JSON-serializable value (`[String: Any]`)
-/// that the server wraps in a tool-result content block. Everything is computed
-/// from the same providers/model/analysis the app uses — no interpretation, just
-/// the data.
-enum MCPTools {
-    // MARK: - Definitions (advertised via tools/list)
-
-    static var definitions: [[String: Any]] {
-        let providerEnum = ProviderKind.allCases.map(\.rawValue)
-        return [
-            [
-                "name": "list_sources",
-                "description": "List the configured agent sources (built-in providers plus custom directories) with their session counts and on-disk roots.",
-                "inputSchema": ["type": "object", "properties": [:] as [String: Any]],
-            ],
-            [
-                "name": "list_sessions",
-                "description": "List sessions across all sources (or one provider), newest first. Each result includes the absolute file path so you can analyze it further or open it directly.",
-                "inputSchema": [
-                    "type": "object",
-                    "properties": [
-                        "provider": ["type": "string", "enum": providerEnum, "description": "Restrict to one provider format."],
-                        "since": ["type": "string", "description": "Only sessions modified on/after this date (ISO 8601 or yyyy-MM-dd)."],
-                        "until": ["type": "string", "description": "Only sessions modified on/before this date."],
-                        "limit": ["type": "integer", "description": "Max results (default 50, max 500)."],
-                        "offset": ["type": "integer", "description": "Skip this many results (paging)."],
-                    ],
-                ],
-            ],
-            [
-                "name": "search_sessions",
-                "description": "Find sessions by keyword. Matches the session title and file path by default; set searchContent to also scan the raw file contents of the most recent sessions.",
-                "inputSchema": [
-                    "type": "object",
-                    "properties": [
-                        "query": ["type": "string", "description": "Keyword to look for (case-insensitive)."],
-                        "provider": ["type": "string", "enum": providerEnum],
-                        "searchContent": ["type": "boolean", "description": "Also grep raw file contents (slower; scans recent sessions)."],
-                        "limit": ["type": "integer", "description": "Max matches (default 20, max 100)."],
-                    ],
-                    "required": ["query"],
-                ],
-            ],
-            [
-                "name": "session_analytics",
-                "description": "Full analytics for one session: metadata, summary counts, tool usage, tokens over time, and estimated context by category. Key on the path + provider returned by list_sessions/search_sessions.",
-                "inputSchema": [
-                    "type": "object",
-                    "properties": [
-                        "path": ["type": "string", "description": "Absolute path to the session file."],
-                        "provider": ["type": "string", "enum": providerEnum],
-                        "range": [
-                            "type": "object",
-                            "description": "Optional inclusive event-index range to scope the metrics.",
-                            "properties": ["start": ["type": "integer"], "end": ["type": "integer"]],
-                        ],
-                    ],
-                    "required": ["path", "provider"],
-                ],
-            ],
-            [
-                "name": "session_events",
-                "description": "The normalized events of a session (messages, reasoning, tool calls, tool results, token usage, lifecycle) for structured analysis. Filter by type, search text, or event-index range.",
-                "inputSchema": [
-                    "type": "object",
-                    "properties": [
-                        "path": ["type": "string"],
-                        "provider": ["type": "string", "enum": providerEnum],
-                        "types": ["type": "array", "items": ["type": "string", "enum": ["message", "reasoning", "toolCall", "toolResult", "tokenUsage", "lifecycle"]]],
-                        "search": ["type": "string", "description": "Only events whose text/name/args/output contains this."],
-                        "range": ["type": "object", "properties": ["start": ["type": "integer"], "end": ["type": "integer"]]],
-                        "limit": ["type": "integer", "description": "Max events (default 200, max 1000)."],
-                        "offset": ["type": "integer"],
-                    ],
-                    "required": ["path", "provider"],
-                ],
-            ],
-            [
-                "name": "overview",
-                "description": "Aggregate analytics across every source: total sessions, a per-provider breakdown (counts and date span), and the busiest days. Fast — based on session discovery, not full parsing.",
-                "inputSchema": [
-                    "type": "object",
-                    "properties": [
-                        "provider": ["type": "string", "enum": providerEnum],
-                        "since": ["type": "string", "description": "Only count sessions modified on/after this date."],
-                    ],
-                ],
-            ],
-        ]
-    }
-
+/// The AGANAL analytics operations that back the CLI. Each returns a
+/// JSON-serializable value (`[String: Any]`) computed from the same
+/// providers/model/analysis the app uses — no interpretation, just the data.
+enum AnalyticsTools {
     // MARK: - Dispatch
 
     static func call(_ name: String, _ args: [String: Any]) throws -> Any {
@@ -101,11 +14,11 @@ enum MCPTools {
         case "session_analytics": return try sessionAnalytics(args)
         case "session_events": return try sessionEvents(args)
         case "overview": return overview(args)
-        default: throw MCPError.badRequest("Unknown tool: \(name)")
+        default: throw CLIError("Unknown command: \(name)")
         }
     }
 
-    // MARK: - Tools
+    // MARK: - Operations
 
     private static func listSources() -> [String: Any] {
         let sources = SessionStore.allSources().map { source -> [String: Any] in
@@ -291,27 +204,12 @@ enum MCPTools {
         return ["totalSessions": total, "providers": providers, "busiestDays": Array(busiest)]
     }
 
-    // MARK: - Resource read (aganal://session/<path>)
-
-    static func readSessionResource(uri: String) throws -> [String: Any] {
-        let prefix = "aganal://session/"
-        guard uri.hasPrefix(prefix) else { throw MCPError.badRequest("Unknown resource URI: \(uri)") }
-        let encoded = String(uri.dropFirst(prefix.count))
-        let path = encoded.removingPercentEncoding ?? encoded
-        guard var text = try? String(contentsOf: URL(fileURLWithPath: path), encoding: .utf8) else {
-            throw MCPError.badRequest("Cannot read session file as text: \(path)")
-        }
-        let cap = 1_000_000
-        if text.count > cap { text = String(text.prefix(cap)) + "\n…[truncated]" }
-        return ["contents": [["uri": uri, "mimeType": "application/x-ndjson", "text": text]]]
-    }
-
     // MARK: - Helpers
 
     private static func loadSession(_ args: [String: Any]) throws -> (Session, String) {
-        guard let path = args.str("path") else { throw MCPError.badRequest("path is required") }
+        guard let path = args.str("path") else { throw CLIError("path is required") }
         guard let kind = ProviderKind(rawValue: args.str("provider") ?? "") else {
-            throw MCPError.badRequest("provider is required (one of \(ProviderKind.allCases.map(\.rawValue).joined(separator: ", ")))")
+            throw CLIError("provider is required (one of \(ProviderKind.allCases.map(\.rawValue).joined(separator: ", ")))")
         }
         let ref = SessionStore.ref(path: path, provider: kind)
         return (try Providers.forKind(kind).parse(ref), path)
@@ -400,7 +298,7 @@ enum MCPTools {
     }
 }
 
-/// Minimal typed access to a JSON-RPC params object.
+/// Minimal typed access to a CLI args object.
 extension Dictionary where Key == String, Value == Any {
     func str(_ key: String) -> String? { self[key] as? String }
     func bool(_ key: String) -> Bool? { self[key] as? Bool }
@@ -411,9 +309,4 @@ extension Dictionary where Key == String, Value == Any {
         if let s = self[key] as? String { return Int(s) }
         return nil
     }
-}
-
-enum MCPError: Error, CustomStringConvertible {
-    case badRequest(String)
-    var description: String { switch self { case .badRequest(let m): return m } }
 }

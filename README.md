@@ -117,33 +117,3 @@ aganal sessions --limit 1       # newest session — note its "path"
 aganal analytics <path>         # full analytics for it
 aganal search "auth" --content  # find sessions mentioning "auth"
 ```
-
-## MCP server
-
-The same operations are available over the
-[Model Context Protocol](https://modelcontextprotocol.io), so an MCP client can
-query your session analytics directly. Run it with the `mcp` subcommand — it
-speaks JSON-RPC over stdio and reuses the same providers and analysis as the app:
-
-```bash
-swift run AGANAL mcp                                   # from source
-/Applications/AGANAL.app/Contents/MacOS/AGANAL mcp     # from an installed build
-```
-
-Register it with a client (e.g. Claude Desktop / Claude Code):
-
-```json
-{
-  "mcpServers": {
-    "aganal": {
-      "command": "/Applications/AGANAL.app/Contents/MacOS/AGANAL",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-Tools: `list_sources`, `list_sessions`, `search_sessions`, `session_analytics`,
-`session_events`, `overview`. Every session a tool returns carries its absolute
-`path`, and the same file is exposed as the resource `aganal://session/<path>` —
-so the AI can use these tools or open the raw log directly.
