@@ -10,11 +10,20 @@ final class AppModel: ObservableObject {
     struct SourceEntry: Identifiable {
         let source: SessionSource
         var refs: [SessionRef]
+        /// False until this source's discovery has finished — drives the per-row
+        /// loading indicator so counts fill in lazily rather than at launch.
+        var isLoaded = false
         var id: SessionSource.ID { source.id }
     }
 
     @Published var sources: [SessionSource]
-    @Published var entries: [SourceEntry] = []
+    @Published var entries: [SourceEntry] = [] {
+        didSet { recomputeAllSessions() }
+    }
+    /// Every discovered session across all sources, newest first, de-duplicated
+    /// by file path — backs the merged "Sessions" tab. Recomputed only when
+    /// `entries` changes, so the (large) list isn't re-sorted on every update.
+    @Published private(set) var allSessions: [SessionRef] = []
     @Published var selectedSourceID: SessionSource.ID?
     @Published var selectedSession: SessionRef?
     @Published var loadedSession: Session?
@@ -37,23 +46,45 @@ final class AppModel: ObservableObject {
         entries.first { $0.id == selectedSourceID }
     }
 
+    private func recomputeAllSessions() {
+        var seen = Set<URL>()
+        var merged: [SessionRef] = []
+        for entry in entries {
+            for ref in entry.refs where seen.insert(ref.id).inserted { merged.append(ref) }
+        }
+        allSessions = merged.sorted { ($0.modifiedAt ?? .distantPast) > ($1.modifiedAt ?? .distantPast) }
+    }
+
     // MARK: - Discovery
 
-    /// Discover sessions for every configured source. Runs once; re-discovery on
-    /// add/remove is handled incrementally.
+    /// Discover sessions for every configured source, progressively. Every source
+    /// appears immediately with no sessions; each is filled in off the main thread
+    /// as its discovery finishes — so launch never blocks on thousands of files
+    /// and counts load lazily. Runs once.
     func loadSources() async {
         guard entries.isEmpty else { return }
+        entries = sources.map { SourceEntry(source: $0, refs: []) }
+        if selectedSourceID == nil { selectedSourceID = entries.first?.id }
         isDiscovering = true
-        defer { isDiscovering = false }
 
-        var built: [SourceEntry] = []
-        for source in sources {
-            built.append(SourceEntry(source: source, refs: await discover(source)))
+        await withTaskGroup(of: (SessionSource.ID, [SessionRef]).self) { group in
+            for source in sources {
+                let kind = source.kind
+                let root = source.root
+                let id = source.id
+                group.addTask {
+                    (id, (try? Providers.forKind(kind).discoverSorted(in: root)) ?? [])
+                }
+            }
+            for await (id, refs) in group {
+                guard let index = entries.firstIndex(where: { $0.id == id }) else { continue }
+                var entry = entries[index]
+                entry.refs = refs
+                entry.isLoaded = true
+                entries[index] = entry
+            }
         }
-        entries = built
-        if selectedSourceID == nil {
-            selectedSourceID = built.first { !$0.refs.isEmpty }?.id ?? built.first?.id
-        }
+        isDiscovering = false
     }
 
     private func discover(_ source: SessionSource) async -> [SessionRef] {
@@ -74,7 +105,7 @@ final class AppModel: ObservableObject {
         sources.append(source)
         saveCustomSources()
         let refs = await discover(source)
-        entries.append(SourceEntry(source: source, refs: refs))
+        entries.append(SourceEntry(source: source, refs: refs, isLoaded: true))
         selectedSourceID = source.id
     }
 
